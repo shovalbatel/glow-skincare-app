@@ -111,7 +111,7 @@ export default function HomePage() {
                 <Sun className="w-4 h-4 text-amber-500" />
                 <span className="text-sm font-semibold text-stone-700">{t('common.morning')}</span>
                 {todayLog?.amCompleted && (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 ms-auto" />
                 )}
               </div>
               <div className="space-y-2">
@@ -120,7 +120,7 @@ export default function HomePage() {
                     <div className="w-1.5 h-1.5 rounded-full bg-rose-300" />
                     <div>
                       <span className="text-sm text-stone-700">{p.name}</span>
-                      <span className="text-xs text-stone-400 ml-1.5">{p.brand}</span>
+                      <span className="text-xs text-stone-400 ms-1.5">{p.brand}</span>
                     </div>
                   </div>
                 ))}
@@ -138,7 +138,7 @@ export default function HomePage() {
                 <Moon className="w-4 h-4 text-indigo-400" />
                 <span className="text-sm font-semibold text-stone-700">{t('common.evening')}</span>
                 {todayLog?.pmCompleted && (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 ms-auto" />
                 )}
               </div>
               <div className="space-y-2">
@@ -147,7 +147,7 @@ export default function HomePage() {
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
                     <div>
                       <span className="text-sm text-stone-700">{p.name}</span>
-                      <span className="text-xs text-stone-400 ml-1.5">{p.brand}</span>
+                      <span className="text-xs text-stone-400 ms-1.5">{p.brand}</span>
                     </div>
                   </div>
                 ))}
@@ -173,7 +173,7 @@ export default function HomePage() {
                     <p className="text-xs text-stone-500">{t('home.logSubtitle')}</p>
                   </div>
                 </div>
-                <ArrowRight className="w-4 h-4 text-rose-400" />
+                <ArrowRight className="w-4 h-4 text-rose-400 rtl:rotate-180" />
               </CardContent>
             </Card>
           </Link>

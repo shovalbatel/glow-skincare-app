@@ -115,7 +115,7 @@ export default function ShoppingPage() {
                     {p.notes && <p className="text-xs text-stone-400 mt-1 italic">{p.notes}</p>}
                   </div>
                 </div>
-                <div className="flex flex-col gap-1 ml-2">
+                <div className="flex flex-col gap-1 ms-2">
                   {p.status === 'need_to_buy' && (
                     <Button
                       size="sm"
@@ -123,7 +123,7 @@ export default function ShoppingPage() {
                       className="text-[10px] h-6 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
                       onClick={() => updateProduct(p.id, { status: 'have', isActive: true })}
                     >
-                      <CheckCircle2 className="w-3 h-3 mr-1" /> {t('shop.bought')}
+                      <CheckCircle2 className="w-3 h-3 me-1" /> {t('shop.bought')}
                     </Button>
                   )}
                   {p.status === 'almost_empty' && (

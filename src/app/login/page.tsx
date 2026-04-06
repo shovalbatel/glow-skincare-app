@@ -22,7 +22,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white flex flex-col items-center justify-center px-6">
       {/* Language toggle */}
-      <div className="absolute top-6 right-6 flex gap-1 bg-white rounded-full p-1 shadow-sm border border-rose-100">
+      <div className="absolute top-6 end-6 flex gap-1 bg-white rounded-full p-1 shadow-sm border border-rose-100">
         {(['en', 'he'] as Locale[]).map((l) => (
           <button
             key={l}

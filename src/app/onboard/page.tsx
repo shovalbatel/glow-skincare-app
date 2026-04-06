@@ -91,7 +91,7 @@ function StepDisclaimer({ onNext }: { onNext: () => void }) {
             <p><strong>{t('onboard.disclaimer.heading')}</strong></p>
             <p>{t('onboard.disclaimer.text1')}</p>
             <p>{t('onboard.disclaimer.text2')}</p>
-            <ul className="list-disc pl-4 space-y-1">
+            <ul className="list-disc ps-4 space-y-1">
               <li>{t('onboard.disclaimer.item1')}</li>
               <li>{t('onboard.disclaimer.item2')}</li>
               <li>{t('onboard.disclaimer.item3')}</li>
@@ -109,7 +109,7 @@ function StepDisclaimer({ onNext }: { onNext: () => void }) {
       </label>
 
       <Button onClick={onNext} disabled={!agreed} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-        {t('onboard.disclaimer.agree')} <ChevronRight className="w-4 h-4 ml-2" />
+        {t('onboard.disclaimer.agree')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
       </Button>
     </div>
   );
@@ -385,7 +385,7 @@ function StepRoutineBuilder({
         </div>
 
         <Button onClick={startRoutine} disabled={!hasAm && !hasPm} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-          {t('onboard.routine.start')} <ChevronRight className="w-4 h-4 ml-2" />
+          {t('onboard.routine.start')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
         </Button>
 
         <button onClick={onSkip} className="w-full text-center text-xs text-stone-400 hover:text-rose-500 transition-colors py-2">
@@ -393,7 +393,7 @@ function StepRoutineBuilder({
         </button>
 
         <Button variant="ghost" onClick={onBack} className="w-full text-stone-400">
-          <ChevronLeft className="w-4 h-4 mr-1" /> {t('common.back')}
+          <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
         </Button>
       </div>
     );
@@ -446,10 +446,10 @@ function StepRoutineBuilder({
             else if (hasAm) { setPhase('am'); setAmStepIndex(AM_STEPS.length - 1); }
             else setPhase('ask');
           }} className="text-stone-400">
-            <ChevronLeft className="w-4 h-4 mr-1" /> {t('common.back')}
+            <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
           </Button>
           <Button onClick={() => setPhase('extras')} className="flex-1 h-11 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-            {specialProducts.length > 0 ? t('common.continue') : t('common.skip')} <ChevronRight className="w-4 h-4 ml-1" />
+            {specialProducts.length > 0 ? t('common.continue') : t('common.skip')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" />
           </Button>
         </div>
       </div>
@@ -500,10 +500,10 @@ function StepRoutineBuilder({
 
         <div className="flex gap-3">
           <Button variant="ghost" onClick={() => setPhase('specials')} className="text-stone-400">
-            <ChevronLeft className="w-4 h-4 mr-1" /> {t('common.back')}
+            <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
           </Button>
           <Button onClick={() => setPhase('summary')} className="flex-1 h-11 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-            {extraProducts.length > 0 ? t('common.continue') : t('common.skip')} <ChevronRight className="w-4 h-4 ml-1" />
+            {extraProducts.length > 0 ? t('common.continue') : t('common.skip')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" />
           </Button>
         </div>
       </div>
@@ -534,7 +534,7 @@ function StepRoutineBuilder({
                 <div key={i} className="flex items-center gap-2 py-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
                   <span className="text-xs text-stone-600">{p.product.name}</span>
-                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">{t('cat.' + p.stepCategory)}</Badge>
+                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ms-auto">{t('cat.' + p.stepCategory)}</Badge>
                 </div>
               ))}
             </CardContent>
@@ -549,7 +549,7 @@ function StepRoutineBuilder({
                 <div key={i} className="flex items-center gap-2 py-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
                   <span className="text-xs text-stone-600">{p.product.name}</span>
-                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">{t('cat.' + p.stepCategory)}</Badge>
+                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ms-auto">{t('cat.' + p.stepCategory)}</Badge>
                 </div>
               ))}
             </CardContent>
@@ -564,7 +564,7 @@ function StepRoutineBuilder({
                 <div key={i} className="flex items-center gap-2 py-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-violet-300" />
                   <span className="text-xs text-stone-600">{p.name}</span>
-                  <span className="text-[9px] text-stone-400 ml-auto">{p.frequency}</span>
+                  <span className="text-[9px] text-stone-400 ms-auto">{p.frequency}</span>
                 </div>
               ))}
             </CardContent>
@@ -579,7 +579,7 @@ function StepRoutineBuilder({
                 <div key={i} className="flex items-center gap-2 py-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-stone-300" />
                   <span className="text-xs text-stone-600">{p.name}</span>
-                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">{t('common.paused')}</Badge>
+                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ms-auto">{t('common.paused')}</Badge>
                 </div>
               ))}
             </CardContent>
@@ -587,7 +587,7 @@ function StepRoutineBuilder({
         )}
 
         <Button onClick={() => onNext(products, hasAm, hasPm)} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-          {t('common.continue')} <ChevronRight className="w-4 h-4 ml-2" />
+          {t('common.continue')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
         </Button>
       </div>
     );
@@ -657,7 +657,7 @@ function StepRoutineBuilder({
       {/* Navigation */}
       <div className="flex gap-3">
         <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
-          <ChevronLeft className="w-4 h-4 mr-1" /> {t('common.back')}
+          <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
         </Button>
         <Button onClick={goNextStep} className={`flex-1 h-11 rounded-xl text-white ${
           productsForCurrentStep.length > 0
@@ -665,9 +665,9 @@ function StepRoutineBuilder({
             : 'bg-stone-300 hover:bg-stone-400'
         }`}>
           {productsForCurrentStep.length > 0 ? (
-            <>{t('onboard.routine.nextStep')} <ChevronRight className="w-4 h-4 ml-1" /></>
+            <>{t('onboard.routine.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></>
           ) : (
-            <><SkipForward className="w-4 h-4 mr-1" /> {t('onboard.routine.dontUse')}</>
+            <><SkipForward className="w-4 h-4 me-1" /> {t('onboard.routine.dontUse')}</>
           )}
         </Button>
       </div>
@@ -720,7 +720,7 @@ function StepFacePhotos({
           <div key={i} className="relative aspect-square rounded-xl overflow-hidden">
             <img src={p.url} alt="" className="w-full h-full object-cover" />
             <button onClick={() => setPhotos(photos.filter((_, j) => j !== i))}
-              className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center">
+              className="absolute top-1 end-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center">
               <X className="w-3 h-3 text-white" />
             </button>
           </div>
@@ -736,9 +736,9 @@ function StepFacePhotos({
       </div>
 
       <div className="flex gap-3">
-        <Button variant="ghost" onClick={onBack} className="text-stone-400"><ChevronLeft className="w-4 h-4 mr-1" /> {t('common.back')}</Button>
+        <Button variant="ghost" onClick={onBack} className="text-stone-400"><ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}</Button>
         <Button onClick={onNext} className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-          {photos.length > 0 ? t('common.continue') : t('onboard.photos.skipForNow')} <ChevronRight className="w-4 h-4 ml-2" />
+          {photos.length > 0 ? t('common.continue') : t('onboard.photos.skipForNow')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
         </Button>
       </div>
     </div>
@@ -762,7 +762,7 @@ function StepDone({ productCount, onFinish }: { productCount: number; onFinish: 
         </p>
       </div>
       <Button onClick={onFinish} className="w-full h-14 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-base font-semibold">
-        <Sparkles className="w-5 h-5 mr-2" /> {t('onboard.done.start')}
+        <Sparkles className="w-5 h-5 me-2" /> {t('onboard.done.start')}
       </Button>
     </div>
   );
@@ -836,7 +836,7 @@ export default function OnboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white">
       {/* Language toggle */}
-      <div className="fixed top-4 right-4 z-50 flex gap-1 bg-white rounded-full p-1 shadow-sm border border-rose-100">
+      <div className="fixed top-4 end-4 z-50 flex gap-1 bg-white rounded-full p-1 shadow-sm border border-rose-100">
         {(['en', 'he'] as Locale[]).map((l) => (
           <button
             key={l}

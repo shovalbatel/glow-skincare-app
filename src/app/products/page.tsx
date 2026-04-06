@@ -62,8 +62,8 @@ export default function ProductsPage() {
 
       <div className="px-5 mb-4 space-y-3">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('products.search')} className="pl-9 bg-white border-rose-100" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('products.search')} className="ps-9 bg-white border-rose-100" />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
           <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v ?? 'all')}>
@@ -103,7 +103,7 @@ export default function ProductsPage() {
                     {!p.isActive && <Badge variant="outline" className="text-[10px] text-stone-400">{t('common.paused')}</Badge>}
                   </div>
                 </div>
-                <div className="flex gap-1 ml-2">
+                <div className="flex gap-1 ms-2">
                   <Sheet>
                     <SheetTrigger render={<Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-stone-400" />} onClick={() => setEditingProduct(p)}>
                       <Pencil className="w-3.5 h-3.5" />

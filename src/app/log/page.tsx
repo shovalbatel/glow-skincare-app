@@ -112,7 +112,7 @@ export default function LogPage() {
       <div className="px-5 mb-5">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => goDay(-1)} className="text-stone-400">
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
           </Button>
           <div className="text-center">
             <p className="text-sm font-semibold text-stone-700">
@@ -123,7 +123,7 @@ export default function LogPage() {
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => goDay(1)} className="text-stone-400">
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 rtl:rotate-180" />
           </Button>
         </div>
       </div>
@@ -279,9 +279,9 @@ export default function LogPage() {
           }`}
         >
           {saved ? (
-            <><CheckCircle2 className="w-4 h-4 mr-2" /> {t('log.saved')}</>
+            <><CheckCircle2 className="w-4 h-4 me-2" /> {t('log.saved')}</>
           ) : (
-            <><Save className="w-4 h-4 mr-2" /> {t('log.save')}</>
+            <><Save className="w-4 h-4 me-2" /> {t('log.save')}</>
           )}
         </Button>
       </div>

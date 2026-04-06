@@ -134,7 +134,7 @@ export function ProductForm({
             onClick={() => setIsActive(!isActive)}
             className={`w-10 h-6 rounded-full transition-colors ${isActive ? 'bg-rose-400' : 'bg-stone-200'}`}
           >
-            <div className={`w-4 h-4 bg-white rounded-full mx-1 transition-transform ${isActive ? 'translate-x-4' : ''}`} />
+            <div className={`w-4 h-4 bg-white rounded-full mx-1 transition-transform ${isActive ? 'ltr:translate-x-4 rtl:-translate-x-4' : ''}`} />
           </button>
         </div>
       )}
@@ -269,12 +269,12 @@ export function SmartAddSheet({
             <button onClick={() => setMode('photo')} className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center"><Camera className="w-5 h-5 text-rose-500" /></div>
               <div><p className="text-sm font-semibold text-stone-700">{t('add.scanPhoto')}</p><p className="text-xs text-stone-400">{t('add.scanPhotoSub')}</p></div>
-              <Sparkles className="w-4 h-4 text-rose-300 ml-auto" />
+              <Sparkles className="w-4 h-4 text-rose-300 ms-auto" />
             </button>
             <button onClick={() => setMode('link')} className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-sky-100 to-blue-100 flex items-center justify-center"><Link2 className="w-5 h-5 text-sky-500" /></div>
               <div><p className="text-sm font-semibold text-stone-700">{t('add.pasteLink')}</p><p className="text-xs text-stone-400">{t('add.pasteLinkSub')}</p></div>
-              <Sparkles className="w-4 h-4 text-sky-300 ml-auto" />
+              <Sparkles className="w-4 h-4 text-sky-300 ms-auto" />
             </button>
             <button onClick={() => setMode('manual')} className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center"><FileText className="w-5 h-5 text-stone-500" /></div>
@@ -303,7 +303,7 @@ export function SmartAddSheet({
           <div className="space-y-4 mt-2">
             <div><Label className="text-xs text-stone-500">{t('add.urlLabel')}</Label><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t('add.urlPlaceholder')} className="mt-1" type="url" /></div>
             <p className="text-xs text-stone-400">{t('add.urlHint')}</p>
-            <Button onClick={handleUrl} disabled={!url.trim()} className="w-full bg-sky-500 hover:bg-sky-600 text-white"><Sparkles className="w-4 h-4 mr-2" />{t('add.extract')}</Button>
+            <Button onClick={handleUrl} disabled={!url.trim()} className="w-full bg-sky-500 hover:bg-sky-600 text-white"><Sparkles className="w-4 h-4 me-2" />{t('add.extract')}</Button>
             <Button variant="ghost" className="w-full text-xs text-stone-400" onClick={() => setMode('choose')}>{t('common.back')}</Button>
           </div>
         )}
