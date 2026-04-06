@@ -111,11 +111,14 @@ function StepDisclaimer({ onNext }: { onNext: () => void }) {
 // ============ Step 1: Routine Setup ============
 function StepRoutineSetup({
   onNext,
+  onSkip,
   onBack,
 }: {
   onNext: (data: { hasMorning: boolean; hasEvening: boolean; cycleLength: number; dayNames: string[] }) => void;
+  onSkip: () => void;
   onBack: () => void;
 }) {
+  const [hasRoutine, setHasRoutine] = useState<boolean | null>(null);
   const [hasMorning, setHasMorning] = useState(true);
   const [hasEvening, setHasEvening] = useState(true);
   const [cycleLength, setCycleLength] = useState(1);
@@ -132,118 +135,153 @@ function StepRoutineSetup({
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center mx-auto mb-4">
           <Layers className="w-7 h-7 text-rose-500" />
         </div>
-        <h2 className="text-xl font-semibold text-stone-800">Set up your routine</h2>
-        <p className="text-sm text-stone-500 mt-1">Tell us about your skincare schedule</p>
+        <h2 className="text-xl font-semibold text-stone-800">Your skincare routine</h2>
+        <p className="text-sm text-stone-500 mt-1">Do you already have a skincare routine?</p>
       </div>
 
-      <div className="space-y-4">
-        <Card className="border-rose-100">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sun className="w-4 h-4 text-amber-500" />
-                <span className="text-sm font-medium text-stone-700">Morning routine?</span>
-              </div>
-              <div className="flex gap-2">
-                {[true, false].map((v) => (
-                  <button
-                    key={String(v)}
-                    onClick={() => setHasMorning(v)}
-                    className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                      hasMorning === v ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500'
-                    }`}
-                  >
-                    {v ? 'Yes' : 'No'}
-                  </button>
-                ))}
-              </div>
+      {/* First question: do you have a routine? */}
+      {hasRoutine === null && (
+        <div className="space-y-3">
+          <button
+            onClick={() => setHasRoutine(true)}
+            className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left"
+          >
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-rose-100">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Moon className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm font-medium text-stone-700">Evening routine?</span>
-              </div>
-              <div className="flex gap-2">
-                {[true, false].map((v) => (
-                  <button
-                    key={String(v)}
-                    onClick={() => setHasEvening(v)}
-                    className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                      hasEvening === v ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500'
-                    }`}
-                  >
-                    {v ? 'Yes' : 'No'}
-                  </button>
-                ))}
-              </div>
+            <div>
+              <p className="text-sm font-semibold text-stone-700">Yes, I have a routine</p>
+              <p className="text-xs text-stone-400">I&apos;ll set up my morning and evening steps</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-rose-100">
-          <CardContent className="pt-4 pb-4">
-            <Label className="text-sm font-medium text-stone-700 mb-3 block">
-              How many days in your routine cycle?
-            </Label>
-            <div className="flex gap-2 flex-wrap">
-              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => updateCycleLength(n)}
-                  className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
-                    cycleLength === n ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500 hover:bg-rose-50'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
+          </button>
+          <button
+            onClick={onSkip}
+            className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left"
+          >
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-sky-100 to-blue-100 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-sky-500" />
             </div>
-            <p className="text-xs text-stone-400 mt-2">
-              {cycleLength === 1 ? 'Same routine every day' : `${cycleLength}-day rotating cycle`}
-            </p>
-          </CardContent>
-        </Card>
+            <div>
+              <p className="text-sm font-semibold text-stone-700">Not yet &mdash; help me build one</p>
+              <p className="text-xs text-stone-400">Add your products first, we&apos;ll suggest a routine later</p>
+            </div>
+          </button>
+        </div>
+      )}
 
-        {cycleLength > 1 && (
+      {/* Routine details (only if they said yes) */}
+      {hasRoutine === true && (
+        <div className="space-y-4">
           <Card className="border-rose-100">
             <CardContent className="pt-4 pb-4">
-              <Label className="text-sm font-medium text-stone-700 mb-3 block">Name each day</Label>
-              <div className="space-y-2">
-                {dayNames.map((name, i) => (
-                  <Input
-                    key={i}
-                    value={name}
-                    onChange={(e) => {
-                      const next = [...dayNames];
-                      next[i] = e.target.value;
-                      setDayNames(next);
-                    }}
-                    placeholder={`Day ${i + 1}`}
-                    className="text-sm"
-                  />
-                ))}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sun className="w-4 h-4 text-amber-500" />
+                  <span className="text-sm font-medium text-stone-700">Morning routine?</span>
+                </div>
+                <div className="flex gap-2">
+                  {[true, false].map((v) => (
+                    <button
+                      key={String(v)}
+                      onClick={() => setHasMorning(v)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        hasMorning === v ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500'
+                      }`}
+                    >
+                      {v ? 'Yes' : 'No'}
+                    </button>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
+
+          <Card className="border-rose-100">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Moon className="w-4 h-4 text-indigo-400" />
+                  <span className="text-sm font-medium text-stone-700">Evening routine?</span>
+                </div>
+                <div className="flex gap-2">
+                  {[true, false].map((v) => (
+                    <button
+                      key={String(v)}
+                      onClick={() => setHasEvening(v)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        hasEvening === v ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500'
+                      }`}
+                    >
+                      {v ? 'Yes' : 'No'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-rose-100">
+            <CardContent className="pt-4 pb-4">
+              <Label className="text-sm font-medium text-stone-700 mb-3 block">
+                How many days in your routine cycle?
+              </Label>
+              <div className="flex gap-2 flex-wrap">
+                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => updateCycleLength(n)}
+                    className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
+                      cycleLength === n ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500 hover:bg-rose-50'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-stone-400 mt-2">
+                {cycleLength === 1 ? 'Same routine every day' : `${cycleLength}-day rotating cycle`}
+              </p>
+            </CardContent>
+          </Card>
+
+          {cycleLength > 1 && (
+            <Card className="border-rose-100">
+              <CardContent className="pt-4 pb-4">
+                <Label className="text-sm font-medium text-stone-700 mb-3 block">Name each day</Label>
+                <div className="space-y-2">
+                  {dayNames.map((name, i) => (
+                    <Input
+                      key={i}
+                      value={name}
+                      onChange={(e) => {
+                        const next = [...dayNames];
+                        next[i] = e.target.value;
+                        setDayNames(next);
+                      }}
+                      placeholder={`Day ${i + 1}`}
+                      className="text-sm"
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-3">
-        <Button variant="ghost" onClick={onBack} className="text-stone-400">
+        <Button variant="ghost" onClick={hasRoutine !== null ? () => setHasRoutine(null) : onBack} className="text-stone-400">
           <ChevronLeft className="w-4 h-4 mr-1" /> Back
         </Button>
-        <Button
-          onClick={() => onNext({ hasMorning, hasEvening, cycleLength, dayNames })}
-          disabled={!hasMorning && !hasEvening}
-          className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl"
-        >
-          Continue <ChevronRight className="w-4 h-4 ml-2" />
-        </Button>
+        {hasRoutine === true && (
+          <Button
+            onClick={() => onNext({ hasMorning, hasEvening, cycleLength, dayNames })}
+            disabled={!hasMorning && !hasEvening}
+            className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl"
+          >
+            Continue <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -745,19 +783,31 @@ function StepDone({
 }
 
 // ============ Main Wizard ============
+// Steps: 0=disclaimer, 1=routine, 2=products, 3=assign, 4=photos, 5=done
+// If user skips routine (no routine yet), flow is: 0→1→2→4→5 (skip 3)
+
 export default function OnboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [routineDays, setRoutineDays] = useState<RoutineDay[]>([]);
-  const [cycleLength, setCycleLength] = useState(1);
+  const [cycleLength, setCycleLength] = useState(0);
   const [productCount, setProductCount] = useState(0);
+  const [skippedRoutine, setSkippedRoutine] = useState(false);
+
+  const totalSteps = skippedRoutine ? 5 : 6;
+  const visualStep = skippedRoutine && step > 2 ? step - 1 : step;
 
   const handleDisclaimerDone = useCallback(async () => {
     if (!user) return;
     await saveDisclaimerAgreement(user.id);
     setStep(1);
   }, [user]);
+
+  const handleRoutineSkip = useCallback(() => {
+    setSkippedRoutine(true);
+    setStep(2);
+  }, []);
 
   const handleRoutineDone = useCallback(async (data: {
     hasMorning: boolean; hasEvening: boolean; cycleLength: number; dayNames: string[];
@@ -773,6 +823,7 @@ export default function OnboardPage() {
     await updateRoutineDays(user.id, days, data.cycleLength);
     setRoutineDays(days);
     setCycleLength(data.cycleLength);
+    setSkippedRoutine(false);
     setStep(2);
   }, [user]);
 
@@ -780,8 +831,12 @@ export default function OnboardPage() {
     if (!user) return;
     const prods = await fetchProducts(user.id);
     setProductCount(prods.length);
-    setStep(3);
-  }, [user]);
+    if (skippedRoutine) {
+      setStep(4); // skip assign step
+    } else {
+      setStep(3);
+    }
+  }, [user, skippedRoutine]);
 
   const handleAssignDone = useCallback(() => setStep(4), []);
 
@@ -798,13 +853,13 @@ export default function OnboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white">
       <div className="max-w-lg mx-auto px-5 pt-12 pb-8">
-        <ProgressDots current={step} total={6} />
+        <ProgressDots current={visualStep} total={totalSteps} />
 
         {step === 0 && <StepDisclaimer onNext={handleDisclaimerDone} />}
-        {step === 1 && <StepRoutineSetup onNext={handleRoutineDone} onBack={() => setStep(0)} />}
+        {step === 1 && <StepRoutineSetup onNext={handleRoutineDone} onSkip={handleRoutineSkip} onBack={() => setStep(0)} />}
         {step === 2 && <StepAddProducts userId={user.id} onNext={handleProductsDone} onBack={() => setStep(1)} />}
-        {step === 3 && <StepAssignRoutine userId={user.id} routineDays={routineDays} cycleLength={cycleLength} onNext={handleAssignDone} onBack={() => setStep(2)} />}
-        {step === 4 && <StepFacePhotos userId={user.id} onNext={handlePhotosDone} onBack={() => setStep(3)} />}
+        {step === 3 && !skippedRoutine && <StepAssignRoutine userId={user.id} routineDays={routineDays} cycleLength={cycleLength} onNext={handleAssignDone} onBack={() => setStep(2)} />}
+        {step === 4 && <StepFacePhotos userId={user.id} onNext={handlePhotosDone} onBack={() => setStep(skippedRoutine ? 2 : 3)} />}
         {step === 5 && <StepDone productCount={productCount} cycleLength={cycleLength} onFinish={handleFinish} />}
       </div>
     </div>
