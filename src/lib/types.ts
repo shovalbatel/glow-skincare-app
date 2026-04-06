@@ -162,3 +162,39 @@ export type SkinConcern =
   | 'dull_skin'
   | 'large_pores'
   | 'sensitivity';
+
+export const IHERB_REFERRAL_CODE = 'PGN197';
+
+export function iherbLink(productName: string): string {
+  return `https://www.iherb.com/search?kw=${encodeURIComponent(productName)}&rcode=${IHERB_REFERRAL_CODE}`;
+}
+
+export interface SkinAnalysis {
+  skinType: string;
+  visibleConcerns: string[];
+  overallAssessment: string;
+  recommendations: string[];
+}
+
+export interface ProductPick {
+  name: string;
+  brand: string;
+  reason: string;
+  category: string;
+  iherbSearch: string;
+}
+
+export interface RoutineSuggestion {
+  type: 'add_step' | 'change_product' | 'reorder' | 'frequency';
+  title: string;
+  description: string;
+  productPick?: ProductPick;
+}
+
+export interface RecommendationData {
+  skinAnalysis: SkinAnalysis | null;
+  routineSuggestions: RoutineSuggestion[];
+  productPicks: ProductPick[];
+  logInsights: string[];
+  createdAt: string;
+}

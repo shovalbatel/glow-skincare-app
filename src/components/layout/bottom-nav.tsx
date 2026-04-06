@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Package, PenSquare, CalendarDays, ShoppingBag, BarChart3 } from 'lucide-react';
+import { Home, Package, PenSquare, CalendarDays, ShoppingBag, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLocale } from '@/components/locale-provider';
 
@@ -16,7 +16,7 @@ export function BottomNav() {
     { href: '/log', icon: PenSquare, label: t('nav.log') },
     { href: '/routine', icon: CalendarDays, label: t('nav.routine') },
     { href: '/shopping', icon: ShoppingBag, label: t('nav.shop') },
-    { href: '/insights', icon: BarChart3, label: t('nav.insights') },
+    { href: '/recommendations', icon: Sparkles, label: t('nav.recommendations') },
   ];
 
   return (

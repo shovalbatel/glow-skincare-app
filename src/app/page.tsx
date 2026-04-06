@@ -227,6 +227,24 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* Recommendations teaser */}
+      <div className="px-5 mb-5">
+        <Link href="/recommendations">
+          <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="pt-4 pb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-5 h-5 text-emerald-500" />
+                <div>
+                  <p className="text-sm font-semibold text-stone-700">{t('rec.title')}</p>
+                  <p className="text-xs text-stone-500">{t('rec.generateSub')}</p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-emerald-400 rtl:rotate-180" />
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
       {/* Quick stats */}
       <div className="px-5 mb-5">
         <div className="grid grid-cols-3 gap-3">

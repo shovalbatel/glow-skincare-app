@@ -270,3 +270,64 @@ export async function fetchProducts(userId: string): Promise<Product[]> {
     .order('created_at');
   return (data || []).map(mapProduct);
 }
+
+export async function fetchFacePhotos(userId: string): Promise<string[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('face_photos')
+    .select('public_url')
+    .eq('user_id', userId)
+    .order('uploaded_at');
+  return (data || []).map((r: { public_url: string }) => r.public_url);
+}
+
+export async function fetchSkinProfile(userId: string): Promise<{ goals: string[]; concerns: string[] }> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('user_settings')
+    .select('skin_goals, skin_concerns')
+    .eq('user_id', userId)
+    .single();
+  return {
+    goals: (data?.skin_goals as string[]) || [],
+    concerns: (data?.skin_concerns as string[]) || [],
+  };
+}
+
+export async function saveRecommendation(
+  userId: string,
+  rec: { skinAnalysis: unknown; routineSuggestions: unknown; productPicks: unknown }
+): Promise<void> {
+  const supabase = createClient();
+  // Delete old recommendations for this user, keep only latest
+  await supabase.from('recommendations').delete().eq('user_id', userId);
+  await supabase.from('recommendations').insert({
+    user_id: userId,
+    skin_analysis: rec.skinAnalysis,
+    routine_suggestions: rec.routineSuggestions,
+    product_picks: rec.productPicks,
+  });
+}
+
+export async function fetchRecommendation(userId: string): Promise<{
+  skinAnalysis: unknown;
+  routineSuggestions: unknown;
+  productPicks: unknown;
+  createdAt: string;
+} | null> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('recommendations')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  if (!data) return null;
+  return {
+    skinAnalysis: data.skin_analysis,
+    routineSuggestions: data.routine_suggestions,
+    productPicks: data.product_picks,
+    createdAt: data.created_at as string,
+  };
+}
