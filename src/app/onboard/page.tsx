@@ -23,6 +23,7 @@ import {
   Shield, CheckCircle2, Plus, SkipForward,
 } from 'lucide-react';
 import { useLocale } from '@/components/locale-provider';
+import { Locale } from '@/lib/translations';
 
 // ============ Constants ============
 
@@ -830,8 +831,25 @@ export default function OnboardPage() {
 
   if (!user) return null;
 
+  const { t: tOnboard, locale, setLocale } = useLocale();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white">
+      {/* Language toggle */}
+      <div className="fixed top-4 right-4 z-50 flex gap-1 bg-white rounded-full p-1 shadow-sm border border-rose-100">
+        {(['en', 'he'] as Locale[]).map((l) => (
+          <button
+            key={l}
+            onClick={() => setLocale(l)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              locale === l ? 'bg-rose-500 text-white' : 'text-stone-500 hover:text-stone-700'
+            }`}
+          >
+            {tOnboard(`lang.${l}`)}
+          </button>
+        ))}
+      </div>
+
       <div className="max-w-lg mx-auto px-5 pt-12 pb-8">
         <ProgressDots current={step} total={4} />
 

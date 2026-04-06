@@ -2,7 +2,8 @@
 
 import { ReactNode } from 'react';
 import { useAuth } from '@/components/auth-provider';
-import { LogOut } from 'lucide-react';
+import { useLocale } from '@/components/locale-provider';
+import { Locale } from '@/lib/translations';
 
 interface PageHeaderProps {
   title: string;
@@ -13,6 +14,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, action, showUser = false }: PageHeaderProps) {
   const { user, signOut } = useAuth();
+  const { locale, setLocale, t } = useLocale();
 
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const name = (user?.user_metadata?.full_name as string) || user?.email || '';
@@ -30,11 +32,25 @@ export function PageHeader({ title, subtitle, action, showUser = false }: PageHe
       </div>
       <div className="flex items-center gap-2 mt-1">
         {action}
+        {/* Language toggle */}
+        <div className="flex gap-0.5 bg-stone-100 rounded-full p-0.5">
+          {(['en', 'he'] as Locale[]).map((l) => (
+            <button
+              key={l}
+              onClick={() => setLocale(l)}
+              className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                locale === l ? 'bg-rose-500 text-white' : 'text-stone-400'
+              }`}
+            >
+              {l === 'en' ? 'EN' : 'HE'}
+            </button>
+          ))}
+        </div>
         {showUser && user && (
           <button
             onClick={signOut}
             className="flex items-center gap-1.5 group"
-            title="Sign out"
+            title={t('common.done')}
           >
             {avatarUrl ? (
               <img
