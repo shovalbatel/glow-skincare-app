@@ -1,0 +1,71 @@
+-- Glow Skincare App — Supabase Schema
+-- Run this in the Supabase SQL Editor (supabase.com/dashboard > SQL Editor)
+
+-- 1. Products
+create table products (
+  id text primary key default gen_random_uuid()::text,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  brand text not null default '',
+  category text not null default 'serum',
+  description text not null default '',
+  routine_time text not null default 'both',
+  frequency text not null default 'Daily',
+  status text not null default 'have',
+  is_active boolean not null default true,
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table products enable row level security;
+create policy "Users manage own products" on products
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index idx_products_user on products(user_id);
+
+-- 2. Daily logs
+create table daily_logs (
+  id text primary key default gen_random_uuid()::text,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  am_completed boolean not null default false,
+  pm_completed boolean not null default false,
+  am_products text[] not null default '{}',
+  pm_products text[] not null default '{}',
+  skin_feeling smallint not null default 3,
+  skin_conditions text[] not null default '{}',
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  unique(user_id, date)
+);
+
+alter table daily_logs enable row level security;
+create policy "Users manage own logs" on daily_logs
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index idx_daily_logs_user_date on daily_logs(user_id, date);
+
+-- 3. Routine days
+create table routine_days (
+  id text primary key default gen_random_uuid()::text,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  day_number smallint not null,
+  name text not null,
+  am_products text[] not null default '{}',
+  pm_products text[] not null default '{}'
+);
+
+alter table routine_days enable row level security;
+create policy "Users manage own routines" on routine_days
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index idx_routine_days_user on routine_days(user_id);
+
+-- 4. User settings
+create table user_settings (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  cycle_length smallint not null default 4,
+  created_at timestamptz not null default now()
+);
+
+alter table user_settings enable row level security;
+create policy "Users manage own settings" on user_settings
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
