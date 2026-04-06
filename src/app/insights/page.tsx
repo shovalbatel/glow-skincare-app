@@ -7,7 +7,6 @@ import { getProductById } from '@/lib/store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  SKIN_CONDITION_LABELS,
   SKIN_CONDITION_ICONS,
   SkinCondition,
 } from '@/lib/types';
@@ -22,11 +21,13 @@ import {
   Tooltip,
 } from 'recharts';
 import { format, subDays } from 'date-fns';
+import { useLocale } from '@/components/locale-provider';
 
 export default function InsightsPage() {
   const { state } = useAppState();
+  const { t } = useLocale();
 
-  if (!state) return <AppShell><div className="flex items-center justify-center h-screen"><div className="animate-pulse text-rose-300">Loading...</div></div></AppShell>;
+  if (!state) return <AppShell><div className="flex items-center justify-center h-screen"><div className="animate-pulse text-rose-300">{t('common.loading')}</div></div></AppShell>;
 
   const logs = state.dailyLogs;
   const totalLogs = logs.length;
@@ -53,7 +54,7 @@ export default function InsightsPage() {
 
   const conditionData = Object.entries(conditionCounts)
     .map(([key, count]) => ({
-      name: SKIN_CONDITION_LABELS[key as SkinCondition],
+      name: t('skin.' + key),
       icon: SKIN_CONDITION_ICONS[key as SkinCondition],
       count,
     }))
@@ -100,7 +101,7 @@ export default function InsightsPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Insights" subtitle={`Based on ${totalLogs} logged days`} />
+      <PageHeader title={t('insights.title')} subtitle={t('insights.basedOn').replace('{n}', String(totalLogs))} />
 
       {/* Summary stats */}
       <div className="px-5 mb-5">
@@ -108,19 +109,19 @@ export default function InsightsPage() {
           <Card className="border-rose-100 shadow-sm">
             <CardContent className="pt-3 pb-3 text-center">
               <p className="text-2xl font-semibold text-rose-600">{completionRate}%</p>
-              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">Completion</p>
+              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">{t('insights.completion')}</p>
             </CardContent>
           </Card>
           <Card className="border-rose-100 shadow-sm">
             <CardContent className="pt-3 pb-3 text-center">
               <p className="text-2xl font-semibold text-amber-500">{avgFeeling}</p>
-              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">Avg Feeling</p>
+              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">{t('insights.avgFeeling')}</p>
             </CardContent>
           </Card>
           <Card className="border-rose-100 shadow-sm">
             <CardContent className="pt-3 pb-3 text-center">
               <p className="text-2xl font-semibold text-stone-600">{totalLogs}</p>
-              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">Days Logged</p>
+              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">{t('insights.daysLogged')}</p>
             </CardContent>
           </Card>
         </div>
@@ -130,7 +131,7 @@ export default function InsightsPage() {
       <div className="px-5 mb-5">
         <Card className="border-rose-100 shadow-sm">
           <CardContent className="pt-4 pb-3">
-            <h3 className="text-sm font-semibold text-stone-700 mb-3">Skin Feeling (Last 14 Days)</h3>
+            <h3 className="text-sm font-semibold text-stone-700 mb-3">{t('insights.skinFeeling14')}</h3>
             <div className="h-32">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={last14}>
@@ -158,7 +159,7 @@ export default function InsightsPage() {
       <div className="px-5 mb-5">
         <Card className="border-rose-100 shadow-sm">
           <CardContent className="pt-4 pb-3">
-            <h3 className="text-sm font-semibold text-stone-700 mb-3">Skin Conditions Frequency</h3>
+            <h3 className="text-sm font-semibold text-stone-700 mb-3">{t('insights.conditionsFreq')}</h3>
             <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={conditionData} layout="vertical">
@@ -184,7 +185,7 @@ export default function InsightsPage() {
       <div className="px-5 mb-5">
         <Card className="border-rose-100 shadow-sm">
           <CardContent className="pt-4 pb-3">
-            <h3 className="text-sm font-semibold text-stone-700 mb-3">Most Used Products</h3>
+            <h3 className="text-sm font-semibold text-stone-700 mb-3">{t('insights.mostUsed')}</h3>
             <div className="space-y-2.5">
               {topProducts.map((p, i) => (
                 <div key={i} className="flex items-center justify-between">
@@ -201,7 +202,7 @@ export default function InsightsPage() {
                 </div>
               ))}
               {topProducts.length === 0 && (
-                <p className="text-xs text-stone-400 italic">Log more days to see product usage</p>
+                <p className="text-xs text-stone-400 italic">{t('insights.logMore')}</p>
               )}
             </div>
           </CardContent>
@@ -213,8 +214,8 @@ export default function InsightsPage() {
         <div className="px-5 mb-5">
           <Card className="border-orange-100 shadow-sm">
             <CardContent className="pt-4 pb-3">
-              <h3 className="text-sm font-semibold text-stone-700 mb-1">Products on Irritation Days</h3>
-              <p className="text-xs text-stone-400 mb-3">Products used on days with irritation, redness, or breakout</p>
+              <h3 className="text-sm font-semibold text-stone-700 mb-1">{t('insights.irritationDays')}</h3>
+              <p className="text-xs text-stone-400 mb-3">{t('insights.irritationSub')}</p>
               <div className="space-y-2">
                 {irritationProducts.map((p, i) => (
                   <div key={i} className="flex items-center justify-between">

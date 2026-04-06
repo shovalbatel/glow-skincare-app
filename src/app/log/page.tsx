@@ -16,9 +16,9 @@ import { ChevronLeft, ChevronRight, Sun, Moon, Save, CheckCircle2 } from 'lucide
 import {
   SkinCondition,
   SkinFeeling,
-  SKIN_CONDITION_LABELS,
   SKIN_CONDITION_ICONS,
 } from '@/lib/types';
+import { useLocale } from '@/components/locale-provider';
 
 const ALL_CONDITIONS: SkinCondition[] = [
   'glow', 'smoothness', 'dryness', 'oily', 'redness', 'irritation', 'breakout', 'tight',
@@ -26,6 +26,7 @@ const ALL_CONDITIONS: SkinCondition[] = [
 
 export default function LogPage() {
   const { state, saveLog } = useAppState();
+  const { t } = useLocale();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [amCompleted, setAmCompleted] = useState(false);
   const [pmCompleted, setPmCompleted] = useState(false);
@@ -60,7 +61,7 @@ export default function LogPage() {
     setSaved(false);
   }, [selectedDate, state]);
 
-  if (!state) return <AppShell><div className="flex items-center justify-center h-screen"><div className="animate-pulse text-rose-300">Loading...</div></div></AppShell>;
+  if (!state) return <AppShell><div className="flex items-center justify-center h-screen"><div className="animate-pulse text-rose-300">{t('common.loading')}</div></div></AppShell>;
 
   const activeProducts = state.products.filter((p) => p.isActive || p.status === 'have');
   const amEligible = activeProducts.filter((p) => p.routineTime === 'am' || p.routineTime === 'both');
@@ -105,7 +106,7 @@ export default function LogPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Daily Log" />
+      <PageHeader title={t('log.title')} />
 
       {/* Date picker */}
       <div className="px-5 mb-5">
@@ -134,7 +135,7 @@ export default function LogPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Sun className="w-4 h-4 text-amber-500" />
-                <span className="text-sm font-semibold text-stone-700">Morning Routine</span>
+                <span className="text-sm font-semibold text-stone-700">{t('log.morningRoutine')}</span>
               </div>
               <button
                 onClick={() => { setAmCompleted(!amCompleted); setSaved(false); }}
@@ -143,7 +144,7 @@ export default function LogPage() {
                 }`}
               >
                 <CheckCircle2 className="w-3 h-3" />
-                {amCompleted ? 'Done' : 'Mark done'}
+                {amCompleted ? t('common.done') : t('log.markDone')}
               </button>
             </div>
             <div className="space-y-2">
@@ -170,7 +171,7 @@ export default function LogPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Moon className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm font-semibold text-stone-700">Evening Routine</span>
+                <span className="text-sm font-semibold text-stone-700">{t('log.eveningRoutine')}</span>
               </div>
               <button
                 onClick={() => { setPmCompleted(!pmCompleted); setSaved(false); }}
@@ -179,7 +180,7 @@ export default function LogPage() {
                 }`}
               >
                 <CheckCircle2 className="w-3 h-3" />
-                {pmCompleted ? 'Done' : 'Mark done'}
+                {pmCompleted ? t('common.done') : t('log.markDone')}
               </button>
             </div>
             <div className="space-y-2">
@@ -203,7 +204,7 @@ export default function LogPage() {
       <div className="px-5 mb-5">
         <Card className="border-rose-100 shadow-sm">
           <CardContent className="pt-4 pb-3">
-            <Label className="text-sm font-semibold text-stone-700 mb-3 block">How does your skin feel?</Label>
+            <Label className="text-sm font-semibold text-stone-700 mb-3 block">{t('log.howFeel')}</Label>
             <div className="flex items-center justify-between mb-4">
               {([1, 2, 3, 4, 5] as SkinFeeling[]).map((n) => (
                 <button
@@ -220,8 +221,8 @@ export default function LogPage() {
               ))}
             </div>
             <div className="flex justify-between px-1">
-              <span className="text-[10px] text-stone-400">Bad</span>
-              <span className="text-[10px] text-stone-400">Great</span>
+              <span className="text-[10px] text-stone-400">{t('log.bad')}</span>
+              <span className="text-[10px] text-stone-400">{t('log.great')}</span>
             </div>
           </CardContent>
         </Card>
@@ -231,7 +232,7 @@ export default function LogPage() {
       <div className="px-5 mb-5">
         <Card className="border-rose-100 shadow-sm">
           <CardContent className="pt-4 pb-3">
-            <Label className="text-sm font-semibold text-stone-700 mb-3 block">Skin conditions today</Label>
+            <Label className="text-sm font-semibold text-stone-700 mb-3 block">{t('log.conditions')}</Label>
             <div className="flex flex-wrap gap-2">
               {ALL_CONDITIONS.map((c) => (
                 <button
@@ -243,7 +244,7 @@ export default function LogPage() {
                       : 'bg-stone-100 text-stone-500 hover:bg-rose-50'
                   }`}
                 >
-                  {SKIN_CONDITION_ICONS[c]} {SKIN_CONDITION_LABELS[c]}
+                  {SKIN_CONDITION_ICONS[c]} {t('skin.' + c)}
                 </button>
               ))}
             </div>
@@ -255,11 +256,11 @@ export default function LogPage() {
       <div className="px-5 mb-5">
         <Card className="border-rose-100 shadow-sm">
           <CardContent className="pt-4 pb-3">
-            <Label className="text-sm font-semibold text-stone-700 mb-2 block">Notes</Label>
+            <Label className="text-sm font-semibold text-stone-700 mb-2 block">{t('log.notes')}</Label>
             <Textarea
               value={notes}
               onChange={(e) => { setNotes(e.target.value); setSaved(false); }}
-              placeholder="How was your skin today? Anything unusual?"
+              placeholder={t('log.notesPlaceholder')}
               rows={3}
               className="border-rose-100"
             />
@@ -278,9 +279,9 @@ export default function LogPage() {
           }`}
         >
           {saved ? (
-            <><CheckCircle2 className="w-4 h-4 mr-2" /> Saved!</>
+            <><CheckCircle2 className="w-4 h-4 mr-2" /> {t('log.saved')}</>
           ) : (
-            <><Save className="w-4 h-4 mr-2" /> Save Log</>
+            <><Save className="w-4 h-4 mr-2" /> {t('log.save')}</>
           )}
         </Button>
       </div>

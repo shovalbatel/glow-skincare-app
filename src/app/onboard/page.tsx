@@ -16,40 +16,41 @@ import {
   uploadFacePhoto,
   saveFacePhotoRecord,
 } from '@/lib/store';
-import { Product, ProductCategory, RoutineDay, CATEGORY_LABELS } from '@/lib/types';
+import { Product, ProductCategory, RoutineDay } from '@/lib/types';
 import {
   Sparkles, Sun, Moon, Camera, Loader2, X,
   ChevronRight, ChevronLeft, UserCircle, ImageIcon, Package,
   Shield, CheckCircle2, Plus, SkipForward,
 } from 'lucide-react';
+import { useLocale } from '@/components/locale-provider';
 
 // ============ Constants ============
 
 interface RoutineStepDef {
   category: ProductCategory;
-  label: string;
-  description: string;
+  labelKey: string;
+  descriptionKey: string;
   time: 'am' | 'pm';
 }
 
 const AM_STEPS: RoutineStepDef[] = [
-  { category: 'cleanser', label: 'Cleanser', description: 'Wash away overnight buildup', time: 'am' },
-  { category: 'toner', label: 'Toner', description: 'Balance and prep your skin', time: 'am' },
-  { category: 'serum', label: 'Serum', description: 'Target specific skin concerns', time: 'am' },
-  { category: 'eye_cream', label: 'Eye Cream', description: 'Hydrate the delicate eye area', time: 'am' },
-  { category: 'moisturizer', label: 'Moisturizer', description: 'Lock in hydration', time: 'am' },
-  { category: 'sunscreen', label: 'Sunscreen', description: 'Protect from UV damage', time: 'am' },
+  { category: 'cleanser', labelKey: 'cat.cleanser', descriptionKey: 'onboard.step.cleanser.am', time: 'am' },
+  { category: 'toner', labelKey: 'cat.toner', descriptionKey: 'onboard.step.toner.am', time: 'am' },
+  { category: 'serum', labelKey: 'cat.serum', descriptionKey: 'onboard.step.serum.am', time: 'am' },
+  { category: 'eye_cream', labelKey: 'cat.eye_cream', descriptionKey: 'onboard.step.eye_cream.am', time: 'am' },
+  { category: 'moisturizer', labelKey: 'cat.moisturizer', descriptionKey: 'onboard.step.moisturizer.am', time: 'am' },
+  { category: 'sunscreen', labelKey: 'cat.sunscreen', descriptionKey: 'onboard.step.sunscreen.am', time: 'am' },
 ];
 
 const PM_STEPS: RoutineStepDef[] = [
-  { category: 'cleanser', label: 'Cleanser', description: 'Remove makeup and daily grime', time: 'pm' },
-  { category: 'toner', label: 'Toner', description: 'Prep skin for treatments', time: 'pm' },
-  { category: 'exfoliant_gentle', label: 'Exfoliant', description: 'Gentle resurfacing (pads, AHA/BHA)', time: 'pm' },
-  { category: 'treatment', label: 'Treatment', description: 'Retinol, niacinamide, or actives', time: 'pm' },
-  { category: 'serum', label: 'Serum', description: 'Hydrating or repair serum', time: 'pm' },
-  { category: 'eye_cream', label: 'Eye Cream', description: 'Nourish the under-eye area', time: 'pm' },
-  { category: 'oil', label: 'Face Oil', description: 'Deep nourishment overnight', time: 'pm' },
-  { category: 'night_cream', label: 'Night Cream', description: 'Rich overnight repair', time: 'pm' },
+  { category: 'cleanser', labelKey: 'cat.cleanser', descriptionKey: 'onboard.step.cleanser.pm', time: 'pm' },
+  { category: 'toner', labelKey: 'cat.toner', descriptionKey: 'onboard.step.toner.pm', time: 'pm' },
+  { category: 'exfoliant_gentle', labelKey: 'cat.exfoliant_gentle', descriptionKey: 'onboard.step.exfoliant_gentle.pm', time: 'pm' },
+  { category: 'treatment', labelKey: 'cat.treatment', descriptionKey: 'onboard.step.treatment.pm', time: 'pm' },
+  { category: 'serum', labelKey: 'cat.serum', descriptionKey: 'onboard.step.serum.pm', time: 'pm' },
+  { category: 'eye_cream', labelKey: 'cat.eye_cream', descriptionKey: 'onboard.step.eye_cream.pm', time: 'pm' },
+  { category: 'oil', labelKey: 'cat.oil', descriptionKey: 'onboard.step.oil.pm', time: 'pm' },
+  { category: 'night_cream', labelKey: 'cat.night_cream', descriptionKey: 'onboard.step.night_cream.pm', time: 'pm' },
 ];
 
 // ============ Progress Dots ============
@@ -70,6 +71,7 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
 
 // ============ Step 0: Disclaimer ============
 function StepDisclaimer({ onNext }: { onNext: () => void }) {
+  const { t } = useLocale();
   const [agreed, setAgreed] = useState(false);
 
   return (
@@ -78,27 +80,22 @@ function StepDisclaimer({ onNext }: { onNext: () => void }) {
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center mx-auto mb-4">
           <Shield className="w-7 h-7 text-amber-600" />
         </div>
-        <h2 className="text-xl font-semibold text-stone-800">Before we begin</h2>
-        <p className="text-sm text-stone-500 mt-1">Please read and accept</p>
+        <h2 className="text-xl font-semibold text-stone-800">{t('onboard.disclaimer.title')}</h2>
+        <p className="text-sm text-stone-500 mt-1">{t('onboard.disclaimer.subtitle')}</p>
       </div>
 
       <Card className="border-amber-100">
         <CardContent className="pt-4 pb-4">
           <div className="text-xs text-stone-600 space-y-3 leading-relaxed max-h-48 overflow-y-auto">
-            <p><strong>AI-Powered Recommendations Disclaimer</strong></p>
-            <p>
-              Glow uses artificial intelligence to provide skincare product suggestions and skin analysis.
-              These recommendations are for <strong>informational purposes only</strong> and should not be
-              considered medical advice.
-            </p>
-            <p>You acknowledge and agree that:</p>
+            <p><strong>{t('onboard.disclaimer.heading')}</strong></p>
+            <p>{t('onboard.disclaimer.text1')}</p>
+            <p>{t('onboard.disclaimer.text2')}</p>
             <ul className="list-disc pl-4 space-y-1">
-              <li>AI recommendations may not be accurate or suitable for your specific skin condition</li>
-              <li>You should always consult with a qualified dermatologist or healthcare professional before starting any new skincare regimen</li>
-              <li>You are solely responsible for verifying any product recommendations with a medical professional</li>
-              <li>Glow and its creators are not liable for any adverse reactions, skin damage, or health issues resulting from following AI-generated recommendations</li>
+              <li>{t('onboard.disclaimer.item1')}</li>
+              <li>{t('onboard.disclaimer.item2')}</li>
+              <li>{t('onboard.disclaimer.item3')}</li>
+              <li>{t('onboard.disclaimer.item4')}</li>
             </ul>
-            <p>By proceeding, you confirm that you understand these limitations and accept full responsibility for your skincare decisions.</p>
           </div>
         </CardContent>
       </Card>
@@ -106,12 +103,12 @@ function StepDisclaimer({ onNext }: { onNext: () => void }) {
       <label className="flex items-start gap-3 cursor-pointer">
         <Checkbox checked={agreed} onCheckedChange={(c) => setAgreed(c === true)} className="mt-0.5 data-[state=checked]:bg-rose-500 data-[state=checked]:border-rose-500" />
         <span className="text-sm text-stone-600 leading-snug">
-          I understand that all AI recommendations are informational only and I will consult a professional before making skincare decisions
+          {t('onboard.disclaimer.checkbox')}
         </span>
       </label>
 
       <Button onClick={onNext} disabled={!agreed} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-        I Agree &amp; Continue <ChevronRight className="w-4 h-4 ml-2" />
+        {t('onboard.disclaimer.agree')} <ChevronRight className="w-4 h-4 ml-2" />
       </Button>
     </div>
   );
@@ -125,6 +122,7 @@ function InlineProductAdder({
   onAdd: (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void;
   category: ProductCategory;
 }) {
+  const { t } = useLocale();
   const [mode, setMode] = useState<'choose' | 'photo' | 'manual' | 'review'>('choose');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -169,7 +167,7 @@ function InlineProductAdder({
     return (
       <div className="flex items-center justify-center py-6 gap-2">
         <Loader2 className="w-5 h-5 text-rose-400 animate-spin" />
-        <span className="text-xs text-stone-500">Analyzing...</span>
+        <span className="text-xs text-stone-500">{t('common.analyzing')}</span>
       </div>
     );
   }
@@ -178,7 +176,7 @@ function InlineProductAdder({
     return (
       <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
         <p className="text-xs text-rose-600">{error}</p>
-        <Button variant="ghost" size="sm" className="text-xs text-rose-500 mt-1 p-0 h-auto" onClick={() => { setError(''); setMode('choose'); }}>Try again</Button>
+        <Button variant="ghost" size="sm" className="text-xs text-rose-500 mt-1 p-0 h-auto" onClick={() => { setError(''); setMode('choose'); }}>{t('common.tryAgain')}</Button>
       </div>
     );
   }
@@ -188,7 +186,7 @@ function InlineProductAdder({
       <div className="space-y-3">
         <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
           <Sparkles className="w-3 h-3 text-emerald-500" />
-          <p className="text-[11px] text-emerald-700">AI-extracted — review and save</p>
+          <p className="text-[11px] text-emerald-700">{t('add.aiExtracted')}</p>
         </div>
         {previewSrc && <img src={previewSrc} alt="" className="w-full h-24 object-cover rounded-lg" />}
         <ProductForm hideStatus initial={extracted} onSave={handleSave} onClose={() => setMode('choose')} />
@@ -199,7 +197,7 @@ function InlineProductAdder({
   if (mode === 'manual') {
     return (
       <div className="space-y-2">
-        <Button variant="ghost" className="text-xs text-stone-400 p-0 h-auto" onClick={() => setMode('choose')}>&larr; Back</Button>
+        <Button variant="ghost" className="text-xs text-stone-400 p-0 h-auto" onClick={() => setMode('choose')}>&larr; {t('common.back')}</Button>
         <ProductForm
           hideStatus
           initial={{ category, routineTime: 'both' }}
@@ -217,14 +215,14 @@ function InlineProductAdder({
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => { fileRef.current?.setAttribute('capture', 'environment'); fileRef.current?.click(); }}
             className="flex flex-col items-center gap-1.5 p-4 rounded-lg border-2 border-dashed border-rose-200 hover:bg-rose-50 transition-colors">
-            <Camera className="w-6 h-6 text-rose-400" /><span className="text-[10px] font-medium text-stone-600">Camera</span>
+            <Camera className="w-6 h-6 text-rose-400" /><span className="text-[10px] font-medium text-stone-600">{t('add.camera')}</span>
           </button>
           <button onClick={() => { fileRef.current?.removeAttribute('capture'); fileRef.current?.click(); }}
             className="flex flex-col items-center gap-1.5 p-4 rounded-lg border-2 border-dashed border-rose-200 hover:bg-rose-50 transition-colors">
-            <ImageIcon className="w-6 h-6 text-rose-400" /><span className="text-[10px] font-medium text-stone-600">Gallery</span>
+            <ImageIcon className="w-6 h-6 text-rose-400" /><span className="text-[10px] font-medium text-stone-600">{t('add.gallery')}</span>
           </button>
         </div>
-        <Button variant="ghost" className="w-full text-xs text-stone-400" onClick={() => setMode('choose')}>Back</Button>
+        <Button variant="ghost" className="w-full text-xs text-stone-400" onClick={() => setMode('choose')}>{t('common.back')}</Button>
       </div>
     );
   }
@@ -235,12 +233,12 @@ function InlineProductAdder({
       <button onClick={() => setMode('photo')}
         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-rose-200 hover:bg-rose-50 transition-colors">
         <Camera className="w-4 h-4 text-rose-400" />
-        <span className="text-xs font-medium text-stone-600">Scan photo</span>
+        <span className="text-xs font-medium text-stone-600">{t('add.scanPhoto')}</span>
       </button>
       <button onClick={() => setMode('manual')}
         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-stone-200 hover:bg-stone-50 transition-colors">
         <Plus className="w-4 h-4 text-stone-400" />
-        <span className="text-xs font-medium text-stone-600">Add manually</span>
+        <span className="text-xs font-medium text-stone-600">{t('add.manual')}</span>
       </button>
     </div>
   );
@@ -264,6 +262,7 @@ function StepRoutineBuilder({
   onSkip: () => void;
   onBack: () => void;
 }) {
+  const { t } = useLocale();
   const [phase, setPhase] = useState<'ask' | 'am' | 'pm' | 'specials' | 'extras' | 'summary'>('ask');
   const [hasAm, setHasAm] = useState(false);
   const [hasPm, setHasPm] = useState(false);
@@ -348,8 +347,8 @@ function StepRoutineBuilder({
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center mx-auto mb-4">
             <Sparkles className="w-7 h-7 text-rose-500" />
           </div>
-          <h2 className="text-xl font-semibold text-stone-800">Build your routine</h2>
-          <p className="text-sm text-stone-500 mt-1">We&apos;ll walk through each step and add your products</p>
+          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.routine.title')}</h2>
+          <p className="text-sm text-stone-500 mt-1">{t('onboard.routine.subtitle')}</p>
         </div>
 
         <div className="space-y-3">
@@ -359,8 +358,8 @@ function StepRoutineBuilder({
                 <Sun className={`w-5 h-5 ${hasAm ? 'text-amber-600' : 'text-stone-400'}`} />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-stone-700">Morning routine</p>
-                <p className="text-xs text-stone-400">{AM_STEPS.length} steps: cleanser to sunscreen</p>
+                <p className="text-sm font-semibold text-stone-700">{t('common.morning')}</p>
+                <p className="text-xs text-stone-400">{t('onboard.routine.morningSteps').replace('{n}', String(AM_STEPS.length))}</p>
               </div>
               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${hasAm ? 'border-amber-400 bg-amber-400' : 'border-stone-200'}`}>
                 {hasAm && <CheckCircle2 className="w-4 h-4 text-white" />}
@@ -374,8 +373,8 @@ function StepRoutineBuilder({
                 <Moon className={`w-5 h-5 ${hasPm ? 'text-indigo-600' : 'text-stone-400'}`} />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-stone-700">Evening routine</p>
-                <p className="text-xs text-stone-400">{PM_STEPS.length} steps: cleanser to night cream</p>
+                <p className="text-sm font-semibold text-stone-700">{t('common.evening')}</p>
+                <p className="text-xs text-stone-400">{t('onboard.routine.eveningSteps').replace('{n}', String(PM_STEPS.length))}</p>
               </div>
               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${hasPm ? 'border-indigo-400 bg-indigo-400' : 'border-stone-200'}`}>
                 {hasPm && <CheckCircle2 className="w-4 h-4 text-white" />}
@@ -385,15 +384,15 @@ function StepRoutineBuilder({
         </div>
 
         <Button onClick={startRoutine} disabled={!hasAm && !hasPm} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-          Start Building <ChevronRight className="w-4 h-4 ml-2" />
+          {t('onboard.routine.start')} <ChevronRight className="w-4 h-4 ml-2" />
         </Button>
 
         <button onClick={onSkip} className="w-full text-center text-xs text-stone-400 hover:text-rose-500 transition-colors py-2">
-          I don&apos;t have a routine yet — skip and get AI recommendations later
+          {t('onboard.routine.noRoutine')}
         </button>
 
         <Button variant="ghost" onClick={onBack} className="w-full text-stone-400">
-          <ChevronLeft className="w-4 h-4 mr-1" /> Back
+          <ChevronLeft className="w-4 h-4 mr-1" /> {t('common.back')}
         </Button>
       </div>
     );
@@ -407,9 +406,9 @@ function StepRoutineBuilder({
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mx-auto mb-4">
             <Sparkles className="w-7 h-7 text-violet-500" />
           </div>
-          <h2 className="text-xl font-semibold text-stone-800">Special treatments</h2>
-          <p className="text-sm text-stone-500 mt-1">Products you use weekly or less often</p>
-          <p className="text-xs text-stone-400 mt-0.5">Peeling masks, chemical exfoliants, face masks, etc.</p>
+          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.specials.title')}</h2>
+          <p className="text-sm text-stone-500 mt-1">{t('onboard.specials.subtitle')}</p>
+          <p className="text-xs text-stone-400 mt-0.5">{t('onboard.specials.hint')}</p>
         </div>
 
         {specialProducts.length > 0 && (
@@ -436,7 +435,7 @@ function StepRoutineBuilder({
           <button onClick={() => setAddingSpecial(true)}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-violet-200 hover:bg-violet-50 transition-colors">
             <Plus className="w-4 h-4 text-violet-400" />
-            <span className="text-sm font-medium text-violet-600">Add a treatment</span>
+            <span className="text-sm font-medium text-violet-600">{t('onboard.specials.add')}</span>
           </button>
         )}
 
@@ -446,10 +445,10 @@ function StepRoutineBuilder({
             else if (hasAm) { setPhase('am'); setAmStepIndex(AM_STEPS.length - 1); }
             else setPhase('ask');
           }} className="text-stone-400">
-            <ChevronLeft className="w-4 h-4 mr-1" /> Back
+            <ChevronLeft className="w-4 h-4 mr-1" /> {t('common.back')}
           </Button>
           <Button onClick={() => setPhase('extras')} className="flex-1 h-11 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-            {specialProducts.length > 0 ? 'Continue' : 'Skip'} <ChevronRight className="w-4 h-4 ml-1" />
+            {specialProducts.length > 0 ? t('common.continue') : t('common.skip')} <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
       </div>
@@ -464,9 +463,9 @@ function StepRoutineBuilder({
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center mx-auto mb-4">
             <Package className="w-7 h-7 text-stone-500" />
           </div>
-          <h2 className="text-xl font-semibold text-stone-800">Other products</h2>
-          <p className="text-sm text-stone-500 mt-1">Products you own but aren&apos;t using right now</p>
-          <p className="text-xs text-stone-400 mt-0.5">Backups, products you&apos;re testing, or ones you paused</p>
+          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.extras.title')}</h2>
+          <p className="text-sm text-stone-500 mt-1">{t('onboard.extras.subtitle')}</p>
+          <p className="text-xs text-stone-400 mt-0.5">{t('onboard.extras.hint')}</p>
         </div>
 
         {extraProducts.length > 0 && (
@@ -478,7 +477,7 @@ function StepRoutineBuilder({
                   <p className="text-sm font-medium text-stone-700 truncate">{p.name}</p>
                   <p className="text-xs text-stone-400">{p.brand}</p>
                 </div>
-                <Badge className="text-[9px] bg-stone-100 text-stone-500">Paused</Badge>
+                <Badge className="text-[9px] bg-stone-100 text-stone-500">{t('common.paused')}</Badge>
               </div>
             ))}
           </div>
@@ -494,16 +493,16 @@ function StepRoutineBuilder({
           <button onClick={() => setAddingExtra(true)}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-stone-200 hover:bg-stone-50 transition-colors">
             <Plus className="w-4 h-4 text-stone-400" />
-            <span className="text-sm font-medium text-stone-500">Add a product</span>
+            <span className="text-sm font-medium text-stone-500">{t('onboard.extras.add')}</span>
           </button>
         )}
 
         <div className="flex gap-3">
           <Button variant="ghost" onClick={() => setPhase('specials')} className="text-stone-400">
-            <ChevronLeft className="w-4 h-4 mr-1" /> Back
+            <ChevronLeft className="w-4 h-4 mr-1" /> {t('common.back')}
           </Button>
           <Button onClick={() => setPhase('summary')} className="flex-1 h-11 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-            {extraProducts.length > 0 ? 'Continue' : 'Skip'} <ChevronRight className="w-4 h-4 ml-1" />
+            {extraProducts.length > 0 ? t('common.continue') : t('common.skip')} <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
       </div>
@@ -522,19 +521,19 @@ function StepRoutineBuilder({
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-7 h-7 text-emerald-600" />
           </div>
-          <h2 className="text-xl font-semibold text-stone-800">Looking great!</h2>
-          <p className="text-sm text-stone-500 mt-1">{totalCount} product{totalCount !== 1 ? 's' : ''} added</p>
+          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.summary.title')}</h2>
+          <p className="text-sm text-stone-500 mt-1">{t('onboard.summary.products').replace('{n}', String(totalCount))}</p>
         </div>
 
         {amProds.length > 0 && (
           <Card className="border-amber-100">
             <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-2"><Sun className="w-4 h-4 text-amber-500" /><span className="text-sm font-semibold text-stone-700">Morning</span></div>
+              <div className="flex items-center gap-2 mb-2"><Sun className="w-4 h-4 text-amber-500" /><span className="text-sm font-semibold text-stone-700">{t('common.morning')}</span></div>
               {amProds.map((p, i) => (
                 <div key={i} className="flex items-center gap-2 py-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
                   <span className="text-xs text-stone-600">{p.product.name}</span>
-                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">{CATEGORY_LABELS[p.stepCategory]}</Badge>
+                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">{t('cat.' + p.stepCategory)}</Badge>
                 </div>
               ))}
             </CardContent>
@@ -544,12 +543,12 @@ function StepRoutineBuilder({
         {pmProds.length > 0 && (
           <Card className="border-indigo-100">
             <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-2"><Moon className="w-4 h-4 text-indigo-400" /><span className="text-sm font-semibold text-stone-700">Evening</span></div>
+              <div className="flex items-center gap-2 mb-2"><Moon className="w-4 h-4 text-indigo-400" /><span className="text-sm font-semibold text-stone-700">{t('common.evening')}</span></div>
               {pmProds.map((p, i) => (
                 <div key={i} className="flex items-center gap-2 py-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
                   <span className="text-xs text-stone-600">{p.product.name}</span>
-                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">{CATEGORY_LABELS[p.stepCategory]}</Badge>
+                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">{t('cat.' + p.stepCategory)}</Badge>
                 </div>
               ))}
             </CardContent>
@@ -559,7 +558,7 @@ function StepRoutineBuilder({
         {specialProducts.length > 0 && (
           <Card className="border-violet-100">
             <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-2"><Sparkles className="w-4 h-4 text-violet-500" /><span className="text-sm font-semibold text-stone-700">Special Treatments</span></div>
+              <div className="flex items-center gap-2 mb-2"><Sparkles className="w-4 h-4 text-violet-500" /><span className="text-sm font-semibold text-stone-700">{t('onboard.summary.specials')}</span></div>
               {specialProducts.map((p, i) => (
                 <div key={i} className="flex items-center gap-2 py-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-violet-300" />
@@ -574,12 +573,12 @@ function StepRoutineBuilder({
         {extraProducts.length > 0 && (
           <Card className="border-stone-100">
             <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-2"><Package className="w-4 h-4 text-stone-400" /><span className="text-sm font-semibold text-stone-700">Other Products</span></div>
+              <div className="flex items-center gap-2 mb-2"><Package className="w-4 h-4 text-stone-400" /><span className="text-sm font-semibold text-stone-700">{t('onboard.summary.extras')}</span></div>
               {extraProducts.map((p, i) => (
                 <div key={i} className="flex items-center gap-2 py-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-stone-300" />
                   <span className="text-xs text-stone-600">{p.name}</span>
-                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">Paused</Badge>
+                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">{t('common.paused')}</Badge>
                 </div>
               ))}
             </CardContent>
@@ -587,7 +586,7 @@ function StepRoutineBuilder({
         )}
 
         <Button onClick={() => onNext(products, hasAm, hasPm)} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-          Continue <ChevronRight className="w-4 h-4 ml-2" />
+          {t('common.continue')} <ChevronRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     );
@@ -606,7 +605,7 @@ function StepRoutineBuilder({
         <div className="flex items-center gap-2">
           <Icon className={`w-4 h-4 text-${accentColor}-500`} />
           <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
-            {isAm ? 'Morning' : 'Evening'} &middot; Step {currentIndex + 1}/{totalInPhase}
+            {isAm ? t('common.morning') : t('common.evening')} &middot; {t('onboard.routine.step').replace('{n}', String(currentIndex + 1)).replace('{total}', String(totalInPhase))}
           </span>
         </div>
         <div className="flex gap-0.5">
@@ -622,8 +621,8 @@ function StepRoutineBuilder({
       {currentStep && (
         <Card className={`border-${accentColor}-100`}>
           <CardContent className="pt-5 pb-4">
-            <h3 className="text-lg font-semibold text-stone-800">{currentStep.label}</h3>
-            <p className="text-xs text-stone-500 mt-0.5 mb-4">{currentStep.description}</p>
+            <h3 className="text-lg font-semibold text-stone-800">{t(currentStep.labelKey)}</h3>
+            <p className="text-xs text-stone-500 mt-0.5 mb-4">{t(currentStep.descriptionKey)}</p>
 
             {/* Products already added for this step */}
             {productsForCurrentStep.length > 0 && (
@@ -640,7 +639,7 @@ function StepRoutineBuilder({
                 {!addingProduct && (
                   <button onClick={() => setAddingProduct(true)}
                     className="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 mt-1">
-                    <Plus className="w-3 h-3" /> Add alternative product
+                    <Plus className="w-3 h-3" /> {t('onboard.routine.addAlt')}
                   </button>
                 )}
               </div>
@@ -657,7 +656,7 @@ function StepRoutineBuilder({
       {/* Navigation */}
       <div className="flex gap-3">
         <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
-          <ChevronLeft className="w-4 h-4 mr-1" /> Back
+          <ChevronLeft className="w-4 h-4 mr-1" /> {t('common.back')}
         </Button>
         <Button onClick={goNextStep} className={`flex-1 h-11 rounded-xl text-white ${
           productsForCurrentStep.length > 0
@@ -665,9 +664,9 @@ function StepRoutineBuilder({
             : 'bg-stone-300 hover:bg-stone-400'
         }`}>
           {productsForCurrentStep.length > 0 ? (
-            <>Next Step <ChevronRight className="w-4 h-4 ml-1" /></>
+            <>{t('onboard.routine.nextStep')} <ChevronRight className="w-4 h-4 ml-1" /></>
           ) : (
-            <><SkipForward className="w-4 h-4 mr-1" /> I don&apos;t use this</>
+            <><SkipForward className="w-4 h-4 mr-1" /> {t('onboard.routine.dontUse')}</>
           )}
         </Button>
       </div>
@@ -685,6 +684,7 @@ function StepFacePhotos({
   onNext: () => void;
   onBack: () => void;
 }) {
+  const { t } = useLocale();
   const [photos, setPhotos] = useState<{ id: string; url: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -706,9 +706,9 @@ function StepFacePhotos({
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-100 to-blue-100 flex items-center justify-center mx-auto mb-4">
           <UserCircle className="w-7 h-7 text-sky-500" />
         </div>
-        <h2 className="text-xl font-semibold text-stone-800">Your skin profile</h2>
-        <p className="text-sm text-stone-500 mt-1">Take 1-5 photos of your face in natural daylight</p>
-        <p className="text-xs text-stone-400 mt-1">This helps us recommend products for your skin type</p>
+        <h2 className="text-xl font-semibold text-stone-800">{t('onboard.photos.title')}</h2>
+        <p className="text-sm text-stone-500 mt-1">{t('onboard.photos.subtitle')}</p>
+        <p className="text-xs text-stone-400 mt-1">{t('onboard.photos.hint')}</p>
       </div>
 
       <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden"
@@ -728,16 +728,16 @@ function StepFacePhotos({
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="aspect-square rounded-xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-1 hover:bg-rose-50 transition-colors">
             {uploading ? <Loader2 className="w-6 h-6 text-rose-300 animate-spin" /> : (
-              <><Camera className="w-6 h-6 text-rose-300" /><span className="text-[10px] text-stone-400">{photos.length === 0 ? 'Add photo' : 'Add more'}</span></>
+              <><Camera className="w-6 h-6 text-rose-300" /><span className="text-[10px] text-stone-400">{photos.length === 0 ? t('onboard.photos.add') : t('onboard.photos.addMore')}</span></>
             )}
           </button>
         )}
       </div>
 
       <div className="flex gap-3">
-        <Button variant="ghost" onClick={onBack} className="text-stone-400"><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
+        <Button variant="ghost" onClick={onBack} className="text-stone-400"><ChevronLeft className="w-4 h-4 mr-1" /> {t('common.back')}</Button>
         <Button onClick={onNext} className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-          {photos.length > 0 ? 'Continue' : 'Skip for now'} <ChevronRight className="w-4 h-4 ml-2" />
+          {photos.length > 0 ? t('common.continue') : t('onboard.photos.skipForNow')} <ChevronRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     </div>
@@ -746,27 +746,34 @@ function StepFacePhotos({
 
 // ============ Step 3: Done ============
 function StepDone({ productCount, onFinish }: { productCount: number; onFinish: () => void }) {
+  const { t } = useLocale();
   return (
     <div className="space-y-8 text-center pt-8">
       <div>
         <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center mx-auto mb-6 shadow-lg">
           <CheckCircle2 className="w-10 h-10 text-white" />
         </div>
-        <h2 className="text-2xl font-semibold text-stone-800">You&apos;re all set!</h2>
+        <h2 className="text-2xl font-semibold text-stone-800">{t('onboard.done.title')}</h2>
         <p className="text-sm text-stone-500 mt-2">
           {productCount > 0
-            ? `${productCount} product${productCount !== 1 ? 's' : ''} added to your routine`
-            : 'Your account is ready — add products anytime'}
+            ? t('onboard.done.withProducts').replace('{n}', String(productCount))
+            : t('onboard.done.noProducts')}
         </p>
       </div>
       <Button onClick={onFinish} className="w-full h-14 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-base font-semibold">
-        <Sparkles className="w-5 h-5 mr-2" /> Start Your Routine
+        <Sparkles className="w-5 h-5 mr-2" /> {t('onboard.done.start')}
       </Button>
     </div>
   );
 }
 
 // ============ Main Wizard ============
+interface RoutineProduct {
+  product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>;
+  stepCategory: ProductCategory;
+  time: 'am' | 'pm';
+}
+
 export default function OnboardPage() {
   const { user } = useAuth();
   const router = useRouter();

@@ -10,16 +10,18 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, Circle, Sun, Moon, Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { SKIN_CONDITION_ICONS, SKIN_CONDITION_LABELS } from '@/lib/types';
+import { SKIN_CONDITION_ICONS } from '@/lib/types';
+import { useLocale } from '@/components/locale-provider';
 
 export default function HomePage() {
   const { state } = useAppState();
+  const { t } = useLocale();
 
   if (!state) {
     return (
       <AppShell>
         <div className="flex items-center justify-center h-screen">
-          <div className="animate-pulse text-rose-300">Loading...</div>
+          <div className="animate-pulse text-rose-300">{t('common.loading')}</div>
         </div>
       </AppShell>
     );
@@ -45,15 +47,15 @@ export default function HomePage() {
 
   return (
     <AppShell>
-      <PageHeader title="Glow" subtitle={todayFormatted} showUser />
+      <PageHeader title={t('app.name')} subtitle={todayFormatted} showUser />
 
       {/* Week streak */}
       <div className="px-5 mb-5">
         <Card className="border-rose-100 shadow-sm">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-stone-500 uppercase tracking-wider">This Week</span>
-              <span className="text-xs text-rose-500 font-semibold">{completedThisWeek}/7 days</span>
+              <span className="text-xs font-medium text-stone-500 uppercase tracking-wider">{t('home.thisWeek')}</span>
+              <span className="text-xs text-rose-500 font-semibold">{completedThisWeek}/7 {t('home.days')}</span>
             </div>
             <div className="flex items-center justify-between gap-1">
               {weekLogs.map((d) => {
@@ -95,7 +97,7 @@ export default function HomePage() {
         <div className="px-5 mb-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-stone-700 uppercase tracking-wider">
-              Today&apos;s Plan
+              {t('home.todaysPlan')}
             </h2>
             <Badge variant="secondary" className="bg-rose-100 text-rose-600 text-xs">
               {routineDay.name}
@@ -107,7 +109,7 @@ export default function HomePage() {
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2 mb-3">
                 <Sun className="w-4 h-4 text-amber-500" />
-                <span className="text-sm font-semibold text-stone-700">Morning</span>
+                <span className="text-sm font-semibold text-stone-700">{t('common.morning')}</span>
                 {todayLog?.amCompleted && (
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
                 )}
@@ -123,7 +125,7 @@ export default function HomePage() {
                   </div>
                 ))}
                 {amProducts.length === 0 && (
-                  <p className="text-xs text-stone-400 italic">No products planned</p>
+                  <p className="text-xs text-stone-400 italic">{t('home.noProducts')}</p>
                 )}
               </div>
             </CardContent>
@@ -134,7 +136,7 @@ export default function HomePage() {
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2 mb-3">
                 <Moon className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm font-semibold text-stone-700">Evening</span>
+                <span className="text-sm font-semibold text-stone-700">{t('common.evening')}</span>
                 {todayLog?.pmCompleted && (
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
                 )}
@@ -150,7 +152,7 @@ export default function HomePage() {
                   </div>
                 ))}
                 {pmProducts.length === 0 && (
-                  <p className="text-xs text-stone-400 italic">No products planned</p>
+                  <p className="text-xs text-stone-400 italic">{t('home.noProducts')}</p>
                 )}
               </div>
             </CardContent>
@@ -167,8 +169,8 @@ export default function HomePage() {
                 <div className="flex items-center gap-3">
                   <Sparkles className="w-5 h-5 text-rose-400" />
                   <div>
-                    <p className="text-sm font-semibold text-stone-700">Log today&apos;s routine</p>
-                    <p className="text-xs text-stone-500">Track what you used and how your skin feels</p>
+                    <p className="text-sm font-semibold text-stone-700">{t('home.logToday')}</p>
+                    <p className="text-xs text-stone-500">{t('home.logSubtitle')}</p>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-rose-400" />
@@ -182,12 +184,12 @@ export default function HomePage() {
       {todayLog && (
         <div className="px-5 mb-5">
           <h2 className="text-sm font-semibold text-stone-700 uppercase tracking-wider mb-3">
-            Today&apos;s Log
+            {t('home.todaysLog')}
           </h2>
           <Card className="border-rose-100 shadow-sm">
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-stone-600">Skin feeling:</span>
+                <span className="text-sm text-stone-600">{t('home.skinFeeling')}</span>
                 <div className="flex gap-0.5">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <div
@@ -207,7 +209,7 @@ export default function HomePage() {
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {todayLog.skinConditions.map((c) => (
                     <Badge key={c} variant="secondary" className="text-xs bg-stone-100">
-                      {SKIN_CONDITION_ICONS[c]} {SKIN_CONDITION_LABELS[c]}
+                      {SKIN_CONDITION_ICONS[c]} {t('skin.' + c)}
                     </Badge>
                   ))}
                 </div>
@@ -217,7 +219,7 @@ export default function HomePage() {
               )}
               <Link href="/log" className="block mt-3">
                 <Button variant="ghost" size="sm" className="text-rose-500 text-xs p-0 h-auto hover:text-rose-600">
-                  Edit log
+                  {t('home.editLog')}
                 </Button>
               </Link>
             </CardContent>
@@ -233,7 +235,7 @@ export default function HomePage() {
               <p className="text-2xl font-semibold text-rose-600">
                 {state.products.filter((p) => p.status === 'have' && p.isActive).length}
               </p>
-              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">Active</p>
+              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">{t('home.active')}</p>
             </CardContent>
           </Card>
           <Card className="border-rose-100 shadow-sm">
@@ -241,7 +243,7 @@ export default function HomePage() {
               <p className="text-2xl font-semibold text-amber-500">
                 {state.products.filter((p) => p.status === 'need_to_buy').length}
               </p>
-              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">To Buy</p>
+              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">{t('home.toBuy')}</p>
             </CardContent>
           </Card>
           <Card className="border-rose-100 shadow-sm">
@@ -249,7 +251,7 @@ export default function HomePage() {
               <p className="text-2xl font-semibold text-stone-600">
                 {state.dailyLogs.length}
               </p>
-              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">Logs</p>
+              <p className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">{t('home.logs')}</p>
             </CardContent>
           </Card>
         </div>

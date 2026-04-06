@@ -15,15 +15,17 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Sun, Moon, Pencil, CheckCircle2, Circle } from 'lucide-react';
 import { RoutineDay } from '@/lib/types';
+import { useLocale } from '@/components/locale-provider';
 
 export default function RoutinePage() {
   const { state, updateRoutine } = useAppState();
+  const { t } = useLocale();
   const [editingDay, setEditingDay] = useState<RoutineDay | null>(null);
   const [editName, setEditName] = useState('');
   const [editAm, setEditAm] = useState<string[]>([]);
   const [editPm, setEditPm] = useState<string[]>([]);
 
-  if (!state) return <AppShell><div className="flex items-center justify-center h-screen"><div className="animate-pulse text-rose-300">Loading...</div></div></AppShell>;
+  if (!state) return <AppShell><div className="flex items-center justify-center h-screen"><div className="animate-pulse text-rose-300">{t('common.loading')}</div></div></AppShell>;
 
   const todayRoutine = getTodayRoutineDay(state);
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -52,8 +54,8 @@ export default function RoutinePage() {
   return (
     <AppShell>
       <PageHeader
-        title="Routine"
-        subtitle={`${state.cycleLength}-day cycle`}
+        title={t('routine.title')}
+        subtitle={`${state.cycleLength}${t('routine.dayCycle')}`}
       />
 
       {/* Today highlight */}
@@ -62,16 +64,16 @@ export default function RoutinePage() {
           <Card className="border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 shadow-sm">
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-rose-500 uppercase tracking-wider">Today</span>
+                <span className="text-xs font-medium text-rose-500 uppercase tracking-wider">{t('routine.today')}</span>
                 {todayLog?.amCompleted && todayLog?.pmCompleted ? (
-                  <Badge className="bg-emerald-100 text-emerald-600 text-[10px]">Completed</Badge>
+                  <Badge className="bg-emerald-100 text-emerald-600 text-[10px]">{t('routine.completed')}</Badge>
                 ) : (
-                  <Badge className="bg-amber-100 text-amber-600 text-[10px]">In Progress</Badge>
+                  <Badge className="bg-amber-100 text-amber-600 text-[10px]">{t('routine.inProgress')}</Badge>
                 )}
               </div>
               <h3 className="text-lg font-semibold text-stone-700">{todayRoutine.name}</h3>
               <p className="text-xs text-stone-500 mt-1">
-                Day {todayRoutine.dayNumber} of {state.cycleLength}
+                {t('routine.dayOf').replace('{n}', String(todayRoutine.dayNumber)).replace('{total}', String(state.cycleLength))}
               </p>
             </CardContent>
           </Card>
@@ -97,7 +99,7 @@ export default function RoutinePage() {
                         {day.dayNumber}
                       </div>
                       <h3 className="text-sm font-semibold text-stone-700">{day.name}</h3>
-                      {isToday && <Badge className="bg-rose-100 text-rose-500 text-[10px]">Today</Badge>}
+                      {isToday && <Badge className="bg-rose-100 text-rose-500 text-[10px]">{t('routine.today')}</Badge>}
                     </div>
                   </div>
                   <Sheet>
@@ -108,14 +110,14 @@ export default function RoutinePage() {
                       <Pencil className="w-3.5 h-3.5" />
                     </SheetTrigger>
                     <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
-                      <SheetHeader><SheetTitle className="text-stone-700">Edit Day {editingDay?.dayNumber}</SheetTitle></SheetHeader>
+                      <SheetHeader><SheetTitle className="text-stone-700">{t('routine.editDay').replace('{n}', String(editingDay?.dayNumber))}</SheetTitle></SheetHeader>
                       <div className="space-y-4 px-1 mt-4">
                         <div>
-                          <Label className="text-xs text-stone-500">Day Name</Label>
+                          <Label className="text-xs text-stone-500">{t('routine.dayName')}</Label>
                           <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-1" />
                         </div>
                         <div>
-                          <Label className="text-xs text-stone-500 flex items-center gap-1"><Sun className="w-3 h-3" /> Morning Products</Label>
+                          <Label className="text-xs text-stone-500 flex items-center gap-1"><Sun className="w-3 h-3" /> {t('routine.morningProducts')}</Label>
                           <div className="space-y-2 mt-2">
                             {amProducts.map((p) => (
                               <label key={p.id} className="flex items-center gap-2 cursor-pointer">
@@ -129,7 +131,7 @@ export default function RoutinePage() {
                           </div>
                         </div>
                         <div>
-                          <Label className="text-xs text-stone-500 flex items-center gap-1"><Moon className="w-3 h-3" /> Evening Products</Label>
+                          <Label className="text-xs text-stone-500 flex items-center gap-1"><Moon className="w-3 h-3" /> {t('routine.eveningProducts')}</Label>
                           <div className="space-y-2 mt-2">
                             {pmProducts.map((p) => (
                               <label key={p.id} className="flex items-center gap-2 cursor-pointer">
@@ -143,7 +145,7 @@ export default function RoutinePage() {
                           </div>
                         </div>
                         <Button onClick={saveEdit} className="w-full bg-rose-500 hover:bg-rose-600 text-white">
-                          Save Changes
+                          {t('routine.saveChanges')}
                         </Button>
                       </div>
                     </SheetContent>
@@ -154,7 +156,7 @@ export default function RoutinePage() {
                   <div>
                     <div className="flex items-center gap-1 mb-1.5">
                       <Sun className="w-3 h-3 text-amber-500" />
-                      <span className="text-[10px] font-medium text-stone-500 uppercase">AM</span>
+                      <span className="text-[10px] font-medium text-stone-500 uppercase">{t('common.am')}</span>
                     </div>
                     {dayAmProducts.map((p) => p && (
                       <p key={p.id} className="text-xs text-stone-600 mb-0.5">{p.name}</p>
@@ -163,7 +165,7 @@ export default function RoutinePage() {
                   <div>
                     <div className="flex items-center gap-1 mb-1.5">
                       <Moon className="w-3 h-3 text-indigo-400" />
-                      <span className="text-[10px] font-medium text-stone-500 uppercase">PM</span>
+                      <span className="text-[10px] font-medium text-stone-500 uppercase">{t('common.pm')}</span>
                     </div>
                     {dayPmProducts.map((p) => p && (
                       <p key={p.id} className="text-xs text-stone-600 mb-0.5">{p.name}</p>

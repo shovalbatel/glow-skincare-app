@@ -9,13 +9,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ShoppingBag, AlertTriangle, RotateCcw, XCircle, CheckCircle2 } from 'lucide-react';
-import { ProductStatus, STATUS_LABELS, STATUS_COLORS, CATEGORY_LABELS } from '@/lib/types';
+import { ProductStatus, STATUS_COLORS } from '@/lib/types';
+import { useLocale } from '@/components/locale-provider';
 
 export default function ShoppingPage() {
   const { state, updateProduct } = useAppState();
+  const { t } = useLocale();
   const [filter, setFilter] = useState<string>('all');
 
-  if (!state) return <AppShell><div className="flex items-center justify-center h-screen"><div className="animate-pulse text-rose-300">Loading...</div></div></AppShell>;
+  if (!state) return <AppShell><div className="flex items-center justify-center h-screen"><div className="animate-pulse text-rose-300">{t('common.loading')}</div></div></AppShell>;
 
   const shoppingStatuses: ProductStatus[] = ['need_to_buy', 'almost_empty', 'repurchase', 'do_not_repurchase'];
   const shoppingProducts = state.products.filter((p) => {
@@ -42,7 +44,7 @@ export default function ShoppingPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Shopping" subtitle="Inventory & purchases" />
+      <PageHeader title={t('shop.title')} subtitle={t('shop.subtitle')} />
 
       {/* Summary cards */}
       <div className="px-5 mb-5">
@@ -51,7 +53,7 @@ export default function ShoppingPage() {
             <CardContent className="pt-3 pb-3">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-medium text-stone-600">To Buy</span>
+                <span className="text-xs font-medium text-stone-600">{t('shop.toBuy')}</span>
               </div>
               <p className="text-2xl font-semibold text-amber-600 mt-1">{counts.need_to_buy}</p>
             </CardContent>
@@ -60,7 +62,7 @@ export default function ShoppingPage() {
             <CardContent className="pt-3 pb-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-orange-500" />
-                <span className="text-xs font-medium text-stone-600">Almost Empty</span>
+                <span className="text-xs font-medium text-stone-600">{t('shop.almostEmpty')}</span>
               </div>
               <p className="text-2xl font-semibold text-orange-600 mt-1">{counts.almost_empty}</p>
             </CardContent>
@@ -69,7 +71,7 @@ export default function ShoppingPage() {
             <CardContent className="pt-3 pb-3">
               <div className="flex items-center gap-2">
                 <RotateCcw className="w-4 h-4 text-sky-500" />
-                <span className="text-xs font-medium text-stone-600">Repurchase</span>
+                <span className="text-xs font-medium text-stone-600">{t('shop.repurchase')}</span>
               </div>
               <p className="text-2xl font-semibold text-sky-600 mt-1">{counts.repurchase}</p>
             </CardContent>
@@ -78,7 +80,7 @@ export default function ShoppingPage() {
             <CardContent className="pt-3 pb-3">
               <div className="flex items-center gap-2">
                 <XCircle className="w-4 h-4 text-rose-500" />
-                <span className="text-xs font-medium text-stone-600">Skip</span>
+                <span className="text-xs font-medium text-stone-600">{t('shop.skipLabel')}</span>
               </div>
               <p className="text-2xl font-semibold text-rose-600 mt-1">{counts.do_not_repurchase}</p>
             </CardContent>
@@ -89,11 +91,11 @@ export default function ShoppingPage() {
       {/* Filter */}
       <div className="px-5 mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-stone-700">
-          {filter === 'all' ? 'All Items' : STATUS_LABELS[filter as ProductStatus]}
+          {filter === 'all' ? t('shop.allItems') : t('status.' + filter)}
         </h2>
         {filter !== 'all' && (
           <Button variant="ghost" size="sm" className="text-xs text-rose-500" onClick={() => setFilter('all')}>
-            Show all
+            {t('shop.showAll')}
           </Button>
         )}
       </div>
@@ -108,7 +110,7 @@ export default function ShoppingPage() {
                   <div className="mt-0.5">{statusIcon(p.status)}</div>
                   <div>
                     <h3 className="text-sm font-semibold text-stone-700">{p.name}</h3>
-                    <p className="text-xs text-stone-400">{p.brand} &middot; {CATEGORY_LABELS[p.category]}</p>
+                    <p className="text-xs text-stone-400">{p.brand} &middot; {t('cat.' + p.category)}</p>
                     <p className="text-xs text-stone-500 mt-1">{p.description}</p>
                     {p.notes && <p className="text-xs text-stone-400 mt-1 italic">{p.notes}</p>}
                   </div>
@@ -121,7 +123,7 @@ export default function ShoppingPage() {
                       className="text-[10px] h-6 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
                       onClick={() => updateProduct(p.id, { status: 'have', isActive: true })}
                     >
-                      <CheckCircle2 className="w-3 h-3 mr-1" /> Bought
+                      <CheckCircle2 className="w-3 h-3 mr-1" /> {t('shop.bought')}
                     </Button>
                   )}
                   {p.status === 'almost_empty' && (
@@ -132,7 +134,7 @@ export default function ShoppingPage() {
                         className="text-[10px] h-6 border-sky-200 text-sky-600"
                         onClick={() => updateProduct(p.id, { status: 'repurchase' })}
                       >
-                        Repurchase
+                        {t('shop.repurchase')}
                       </Button>
                       <Button
                         size="sm"
@@ -140,7 +142,7 @@ export default function ShoppingPage() {
                         className="text-[10px] h-6 border-rose-200 text-rose-600"
                         onClick={() => updateProduct(p.id, { status: 'do_not_repurchase' })}
                       >
-                        Skip
+                        {t('shop.skipLabel')}
                       </Button>
                     </>
                   )}
@@ -152,7 +154,7 @@ export default function ShoppingPage() {
         {shoppingProducts.length === 0 && (
           <div className="text-center py-12">
             <ShoppingBag className="w-8 h-8 text-stone-200 mx-auto mb-2" />
-            <p className="text-sm text-stone-400">No items in this category</p>
+            <p className="text-sm text-stone-400">{t('shop.noItems')}</p>
           </div>
         )}
       </div>
