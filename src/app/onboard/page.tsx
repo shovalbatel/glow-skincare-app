@@ -1,12 +1,10 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ProductForm, ExtractedProduct } from '@/components/product-add-flow';
@@ -17,14 +15,42 @@ import {
   completeOnboarding,
   uploadFacePhoto,
   saveFacePhotoRecord,
-  fetchProducts,
 } from '@/lib/store';
-import { Product, RoutineDay, CATEGORY_LABELS } from '@/lib/types';
+import { Product, ProductCategory, RoutineDay, CATEGORY_LABELS } from '@/lib/types';
 import {
-  Sparkles, Sun, Moon, Camera, ImageIcon, Loader2, X,
-  ChevronRight, ChevronLeft, Package, Layers, UserCircle,
-  Shield, CheckCircle2,
+  Sparkles, Sun, Moon, Camera, Loader2, X,
+  ChevronRight, ChevronLeft, UserCircle, ImageIcon, Package,
+  Shield, CheckCircle2, Plus, SkipForward,
 } from 'lucide-react';
+
+// ============ Constants ============
+
+interface RoutineStepDef {
+  category: ProductCategory;
+  label: string;
+  description: string;
+  time: 'am' | 'pm';
+}
+
+const AM_STEPS: RoutineStepDef[] = [
+  { category: 'cleanser', label: 'Cleanser', description: 'Wash away overnight buildup', time: 'am' },
+  { category: 'toner', label: 'Toner', description: 'Balance and prep your skin', time: 'am' },
+  { category: 'serum', label: 'Serum', description: 'Target specific skin concerns', time: 'am' },
+  { category: 'eye_cream', label: 'Eye Cream', description: 'Hydrate the delicate eye area', time: 'am' },
+  { category: 'moisturizer', label: 'Moisturizer', description: 'Lock in hydration', time: 'am' },
+  { category: 'sunscreen', label: 'Sunscreen', description: 'Protect from UV damage', time: 'am' },
+];
+
+const PM_STEPS: RoutineStepDef[] = [
+  { category: 'cleanser', label: 'Cleanser', description: 'Remove makeup and daily grime', time: 'pm' },
+  { category: 'toner', label: 'Toner', description: 'Prep skin for treatments', time: 'pm' },
+  { category: 'exfoliant_gentle', label: 'Exfoliant', description: 'Gentle resurfacing (pads, AHA/BHA)', time: 'pm' },
+  { category: 'treatment', label: 'Treatment', description: 'Retinol, niacinamide, or actives', time: 'pm' },
+  { category: 'serum', label: 'Serum', description: 'Hydrating or repair serum', time: 'pm' },
+  { category: 'eye_cream', label: 'Eye Cream', description: 'Nourish the under-eye area', time: 'pm' },
+  { category: 'oil', label: 'Face Oil', description: 'Deep nourishment overnight', time: 'pm' },
+  { category: 'night_cream', label: 'Night Cream', description: 'Rich overnight repair', time: 'pm' },
+];
 
 // ============ Progress Dots ============
 function ProgressDots({ current, total }: { current: number; total: number }) {
@@ -59,263 +85,54 @@ function StepDisclaimer({ onNext }: { onNext: () => void }) {
       <Card className="border-amber-100">
         <CardContent className="pt-4 pb-4">
           <div className="text-xs text-stone-600 space-y-3 leading-relaxed max-h-48 overflow-y-auto">
-            <p>
-              <strong>AI-Powered Recommendations Disclaimer</strong>
-            </p>
+            <p><strong>AI-Powered Recommendations Disclaimer</strong></p>
             <p>
               Glow uses artificial intelligence to provide skincare product suggestions and skin analysis.
               These recommendations are for <strong>informational purposes only</strong> and should not be
               considered medical advice.
             </p>
-            <p>
-              You acknowledge and agree that:
-            </p>
+            <p>You acknowledge and agree that:</p>
             <ul className="list-disc pl-4 space-y-1">
               <li>AI recommendations may not be accurate or suitable for your specific skin condition</li>
               <li>You should always consult with a qualified dermatologist or healthcare professional before starting any new skincare regimen</li>
               <li>You are solely responsible for verifying any product recommendations with a medical professional</li>
               <li>Glow and its creators are not liable for any adverse reactions, skin damage, or health issues resulting from following AI-generated recommendations</li>
-              <li>Individual results may vary and past performance of products does not guarantee future results</li>
             </ul>
-            <p>
-              By proceeding, you confirm that you understand these limitations and accept full
-              responsibility for your skincare decisions.
-            </p>
+            <p>By proceeding, you confirm that you understand these limitations and accept full responsibility for your skincare decisions.</p>
           </div>
         </CardContent>
       </Card>
 
       <label className="flex items-start gap-3 cursor-pointer">
-        <Checkbox
-          checked={agreed}
-          onCheckedChange={(c) => setAgreed(c === true)}
-          className="mt-0.5 data-[state=checked]:bg-rose-500 data-[state=checked]:border-rose-500"
-        />
+        <Checkbox checked={agreed} onCheckedChange={(c) => setAgreed(c === true)} className="mt-0.5 data-[state=checked]:bg-rose-500 data-[state=checked]:border-rose-500" />
         <span className="text-sm text-stone-600 leading-snug">
           I understand that all AI recommendations are informational only and I will consult a professional before making skincare decisions
         </span>
       </label>
 
-      <Button
-        onClick={onNext}
-        disabled={!agreed}
-        className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl"
-      >
-        I Agree &amp; Continue
-        <ChevronRight className="w-4 h-4 ml-2" />
+      <Button onClick={onNext} disabled={!agreed} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+        I Agree &amp; Continue <ChevronRight className="w-4 h-4 ml-2" />
       </Button>
     </div>
   );
 }
 
-// ============ Step 1: Routine Setup ============
-function StepRoutineSetup({
-  onNext,
-  onSkip,
-  onBack,
+// ============ Inline Product Adder (for routine steps) ============
+function InlineProductAdder({
+  onAdd,
+  category,
 }: {
-  onNext: (data: { hasMorning: boolean; hasEvening: boolean; cycleLength: number; dayNames: string[] }) => void;
-  onSkip: () => void;
-  onBack: () => void;
+  onAdd: (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  category: ProductCategory;
 }) {
-  const [hasRoutine, setHasRoutine] = useState<boolean | null>(null);
-  const [hasMorning, setHasMorning] = useState(true);
-  const [hasEvening, setHasEvening] = useState(true);
-  const [cycleLength, setCycleLength] = useState(1);
-  const [dayNames, setDayNames] = useState<string[]>(['Day 1']);
-
-  const updateCycleLength = (n: number) => {
-    setCycleLength(n);
-    setDayNames(Array.from({ length: n }, (_, i) => dayNames[i] || `Day ${i + 1}`));
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center mx-auto mb-4">
-          <Layers className="w-7 h-7 text-rose-500" />
-        </div>
-        <h2 className="text-xl font-semibold text-stone-800">Your skincare routine</h2>
-        <p className="text-sm text-stone-500 mt-1">Do you already have a skincare routine?</p>
-      </div>
-
-      {/* First question: do you have a routine? */}
-      {hasRoutine === null && (
-        <div className="space-y-3">
-          <button
-            onClick={() => setHasRoutine(true)}
-            className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left"
-          >
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-stone-700">Yes, I have a routine</p>
-              <p className="text-xs text-stone-400">I&apos;ll set up my morning and evening steps</p>
-            </div>
-          </button>
-          <button
-            onClick={onSkip}
-            className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left"
-          >
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-sky-100 to-blue-100 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-sky-500" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-stone-700">Not yet &mdash; help me build one</p>
-              <p className="text-xs text-stone-400">Add your products first, we&apos;ll suggest a routine later</p>
-            </div>
-          </button>
-        </div>
-      )}
-
-      {/* Routine details (only if they said yes) */}
-      {hasRoutine === true && (
-        <div className="space-y-4">
-          <Card className="border-rose-100">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sun className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm font-medium text-stone-700">Morning routine?</span>
-                </div>
-                <div className="flex gap-2">
-                  {[true, false].map((v) => (
-                    <button
-                      key={String(v)}
-                      onClick={() => setHasMorning(v)}
-                      className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        hasMorning === v ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500'
-                      }`}
-                    >
-                      {v ? 'Yes' : 'No'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-rose-100">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Moon className="w-4 h-4 text-indigo-400" />
-                  <span className="text-sm font-medium text-stone-700">Evening routine?</span>
-                </div>
-                <div className="flex gap-2">
-                  {[true, false].map((v) => (
-                    <button
-                      key={String(v)}
-                      onClick={() => setHasEvening(v)}
-                      className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        hasEvening === v ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500'
-                      }`}
-                    >
-                      {v ? 'Yes' : 'No'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-rose-100">
-            <CardContent className="pt-4 pb-4">
-              <Label className="text-sm font-medium text-stone-700 mb-3 block">
-                How many days in your routine cycle?
-              </Label>
-              <div className="flex gap-2 flex-wrap">
-                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => updateCycleLength(n)}
-                    className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
-                      cycleLength === n ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500 hover:bg-rose-50'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-stone-400 mt-2">
-                {cycleLength === 1 ? 'Same routine every day' : `${cycleLength}-day rotating cycle`}
-              </p>
-            </CardContent>
-          </Card>
-
-          {cycleLength > 1 && (
-            <Card className="border-rose-100">
-              <CardContent className="pt-4 pb-4">
-                <Label className="text-sm font-medium text-stone-700 mb-3 block">Name each day</Label>
-                <div className="space-y-2">
-                  {dayNames.map((name, i) => (
-                    <Input
-                      key={i}
-                      value={name}
-                      onChange={(e) => {
-                        const next = [...dayNames];
-                        next[i] = e.target.value;
-                        setDayNames(next);
-                      }}
-                      placeholder={`Day ${i + 1}`}
-                      className="text-sm"
-                    />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
-      <div className="flex gap-3">
-        <Button variant="ghost" onClick={hasRoutine !== null ? () => setHasRoutine(null) : onBack} className="text-stone-400">
-          <ChevronLeft className="w-4 h-4 mr-1" /> Back
-        </Button>
-        {hasRoutine === true && (
-          <Button
-            onClick={() => onNext({ hasMorning, hasEvening, cycleLength, dayNames })}
-            disabled={!hasMorning && !hasEvening}
-            className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl"
-          >
-            Continue <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ============ Step 2: Add Products ============
-function StepAddProducts({
-  userId,
-  onNext,
-  onBack,
-}: {
-  userId: string;
-  onNext: () => void;
-  onBack: () => void;
-}) {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [mode, setMode] = useState<'choose' | 'photo' | 'manual' | 'review'>('choose');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState<'menu' | 'single' | 'batch' | 'manual' | 'review' | 'batchReview'>('menu');
   const [extracted, setExtracted] = useState<ExtractedProduct | null>(null);
-  const [batchExtracted, setBatchExtracted] = useState<ExtractedProduct[]>([]);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchProducts(userId).then(setProducts);
-  }, [userId]);
-
-  const refreshProducts = async () => {
-    const p = await fetchProducts(userId);
-    setProducts(p);
-  };
-
-  const handleSingleFile = async (file: File) => {
+  const handleFile = async (file: File) => {
     setLoading(true);
     setError('');
     setPreviewSrc(URL.createObjectURL(file));
@@ -333,7 +150,7 @@ function StepAddProducts({
         setMode('review');
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to extract');
-        setMode('single');
+        setMode('photo');
       } finally {
         setLoading(false);
       }
@@ -341,323 +158,524 @@ function StepAddProducts({
     reader.readAsDataURL(file);
   };
 
-  const handleBatchFile = async (file: File) => {
-    setLoading(true);
-    setError('');
-    setPreviewSrc(URL.createObjectURL(file));
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const res = await fetch('/api/extract-products-batch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: reader.result }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        setBatchExtracted(Array.isArray(data) ? data : [data]);
-        setMode('batchReview');
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Failed to extract');
-        setMode('batch');
-      } finally {
-        setLoading(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const saveProduct = async (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    await storeAddProduct(userId, data);
-    await refreshProducts();
-    setMode('menu');
+  const handleSave = (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    onAdd(data);
+    setMode('choose');
     setExtracted(null);
     setPreviewSrc(null);
   };
 
-  const saveBatchProducts = async () => {
-    for (const p of batchExtracted) {
-      await storeAddProduct(userId, {
-        name: p.name, brand: p.brand, category: p.category, description: p.description,
-        routineTime: p.routineTime, frequency: p.frequency, status: 'have', isActive: true, notes: p.notes,
-      });
-    }
-    await refreshProducts();
-    setMode('menu');
-    setBatchExtracted([]);
-    setPreviewSrc(null);
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-6 gap-2">
+        <Loader2 className="w-5 h-5 text-rose-400 animate-spin" />
+        <span className="text-xs text-stone-500">Analyzing...</span>
+      </div>
+    );
+  }
 
+  if (error) {
+    return (
+      <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
+        <p className="text-xs text-rose-600">{error}</p>
+        <Button variant="ghost" size="sm" className="text-xs text-rose-500 mt-1 p-0 h-auto" onClick={() => { setError(''); setMode('choose'); }}>Try again</Button>
+      </div>
+    );
+  }
+
+  if (mode === 'review' && extracted) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+          <Sparkles className="w-3 h-3 text-emerald-500" />
+          <p className="text-[11px] text-emerald-700">AI-extracted — review and save</p>
+        </div>
+        {previewSrc && <img src={previewSrc} alt="" className="w-full h-24 object-cover rounded-lg" />}
+        <ProductForm hideStatus initial={extracted} onSave={handleSave} onClose={() => setMode('choose')} />
+      </div>
+    );
+  }
+
+  if (mode === 'manual') {
+    return (
+      <div className="space-y-2">
+        <Button variant="ghost" className="text-xs text-stone-400 p-0 h-auto" onClick={() => setMode('choose')}>&larr; Back</Button>
+        <ProductForm
+          hideStatus
+          initial={{ category, routineTime: 'both' }}
+          onSave={handleSave}
+          onClose={() => setMode('choose')}
+        />
+      </div>
+    );
+  }
+
+  if (mode === 'photo') {
+    return (
+      <div className="space-y-3">
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => { fileRef.current?.setAttribute('capture', 'environment'); fileRef.current?.click(); }}
+            className="flex flex-col items-center gap-1.5 p-4 rounded-lg border-2 border-dashed border-rose-200 hover:bg-rose-50 transition-colors">
+            <Camera className="w-6 h-6 text-rose-400" /><span className="text-[10px] font-medium text-stone-600">Camera</span>
+          </button>
+          <button onClick={() => { fileRef.current?.removeAttribute('capture'); fileRef.current?.click(); }}
+            className="flex flex-col items-center gap-1.5 p-4 rounded-lg border-2 border-dashed border-rose-200 hover:bg-rose-50 transition-colors">
+            <ImageIcon className="w-6 h-6 text-rose-400" /><span className="text-[10px] font-medium text-stone-600">Gallery</span>
+          </button>
+        </div>
+        <Button variant="ghost" className="w-full text-xs text-stone-400" onClick={() => setMode('choose')}>Back</Button>
+      </div>
+    );
+  }
+
+  // choose mode
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center mx-auto mb-4">
-          <Package className="w-7 h-7 text-emerald-600" />
-        </div>
-        <h2 className="text-xl font-semibold text-stone-800">Add your products</h2>
-        <p className="text-sm text-stone-500 mt-1">
-          {products.length === 0 ? 'Start building your collection' : `${products.length} product${products.length > 1 ? 's' : ''} added`}
-        </p>
-      </div>
-
-      {error && (
-        <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
-          <p className="text-xs text-rose-600">{error}</p>
-          <Button variant="ghost" size="sm" className="text-xs text-rose-500 mt-1 p-0 h-auto" onClick={() => { setError(''); setMode('menu'); }}>
-            Try again
-          </Button>
-        </div>
-      )}
-
-      {loading && (
-        <div className="flex flex-col items-center py-12 gap-3">
-          <Loader2 className="w-8 h-8 text-rose-400 animate-spin" />
-          <p className="text-sm text-stone-500">Analyzing product{mode === 'batch' ? 's' : ''}...</p>
-        </div>
-      )}
-
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-        const f = e.target.files?.[0];
-        if (!f) return;
-        if (mode === 'batch') handleBatchFile(f);
-        else handleSingleFile(f);
-      }} />
-
-      {mode === 'menu' && !loading && (
-        <div className="space-y-3">
-          <button onClick={() => { setMode('single'); fileRef.current?.setAttribute('capture', 'environment'); fileRef.current?.click(); }}
-            className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center"><Camera className="w-5 h-5 text-rose-500" /></div>
-            <div><p className="text-sm font-semibold text-stone-700">Scan a product</p><p className="text-xs text-stone-400">Take a photo of one product</p></div>
-            <Sparkles className="w-4 h-4 text-rose-300 ml-auto" />
-          </button>
-          <button onClick={() => { setMode('batch'); fileRef.current?.removeAttribute('capture'); fileRef.current?.click(); }}
-            className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center"><ImageIcon className="w-5 h-5 text-violet-500" /></div>
-            <div><p className="text-sm font-semibold text-stone-700">Scan multiple products</p><p className="text-xs text-stone-400">Photo of all your products together</p></div>
-            <Sparkles className="w-4 h-4 text-violet-300 ml-auto" />
-          </button>
-          <button onClick={() => setMode('manual')}
-            className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center"><Package className="w-5 h-5 text-stone-500" /></div>
-            <div><p className="text-sm font-semibold text-stone-700">Add manually</p><p className="text-xs text-stone-400">Type in product details</p></div>
-          </button>
-        </div>
-      )}
-
-      {mode === 'manual' && !loading && (
-        <>
-          <Button variant="ghost" className="text-xs text-stone-400 p-0 h-auto" onClick={() => setMode('menu')}>&larr; Back</Button>
-          <ProductForm hideStatus onSave={saveProduct} onClose={() => setMode('menu')} />
-        </>
-      )}
-
-      {mode === 'review' && extracted && !loading && (
-        <>
-          <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
-            <Sparkles className="w-4 h-4 text-emerald-500" />
-            <p className="text-xs text-emerald-700">Review the extracted details</p>
-          </div>
-          {previewSrc && <img src={previewSrc} alt="" className="w-full h-28 object-cover rounded-xl" />}
-          <ProductForm hideStatus initial={extracted} onSave={saveProduct} onClose={() => setMode('menu')} />
-        </>
-      )}
-
-      {mode === 'batchReview' && !loading && (
-        <>
-          <div className="flex items-center gap-2 p-2 bg-violet-50 border border-violet-200 rounded-lg">
-            <Sparkles className="w-4 h-4 text-violet-500" />
-            <p className="text-xs text-violet-700">Found {batchExtracted.length} product{batchExtracted.length > 1 ? 's' : ''}</p>
-          </div>
-          <div className="space-y-2">
-            {batchExtracted.map((p, i) => (
-              <Card key={i} className="border-rose-100">
-                <CardContent className="pt-3 pb-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-stone-700">{p.name}</p>
-                    <p className="text-xs text-stone-400">{p.brand} &middot; {CATEGORY_LABELS[p.category] || p.category}</p>
-                  </div>
-                  <button onClick={() => {
-                    setBatchExtracted(batchExtracted.filter((_, j) => j !== i));
-                  }} className="text-stone-300 hover:text-rose-500"><X className="w-4 h-4" /></button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <Button onClick={saveBatchProducts} className="w-full bg-violet-500 hover:bg-violet-600 text-white">
-            Save All {batchExtracted.length} Products
-          </Button>
-          <Button variant="ghost" className="w-full text-xs text-stone-400" onClick={() => { setBatchExtracted([]); setMode('menu'); }}>Cancel</Button>
-        </>
-      )}
-
-      {/* Added products list */}
-      {products.length > 0 && mode === 'menu' && (
-        <div>
-          <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Your products</h3>
-          <div className="space-y-1.5">
-            {products.map((p) => (
-              <div key={p.id} className="flex items-center gap-2 py-1.5 px-3 bg-white rounded-lg border border-rose-50">
-                <div className="w-1.5 h-1.5 rounded-full bg-rose-300" />
-                <span className="text-sm text-stone-700 flex-1">{p.name}</span>
-                <span className="text-xs text-stone-400">{p.brand}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="flex gap-3">
-        <Button variant="ghost" onClick={onBack} className="text-stone-400">
-          <ChevronLeft className="w-4 h-4 mr-1" /> Back
-        </Button>
-        <Button onClick={onNext} className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-          {products.length > 0 ? 'Continue' : 'Skip for now'} <ChevronRight className="w-4 h-4 ml-2" />
-        </Button>
-      </div>
+    <div className="flex gap-2">
+      <button onClick={() => setMode('photo')}
+        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-rose-200 hover:bg-rose-50 transition-colors">
+        <Camera className="w-4 h-4 text-rose-400" />
+        <span className="text-xs font-medium text-stone-600">Scan photo</span>
+      </button>
+      <button onClick={() => setMode('manual')}
+        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-stone-200 hover:bg-stone-50 transition-colors">
+        <Plus className="w-4 h-4 text-stone-400" />
+        <span className="text-xs font-medium text-stone-600">Add manually</span>
+      </button>
     </div>
   );
 }
 
-// ============ Step 3: Assign Products to Routine ============
-function StepAssignRoutine({
+// ============ Step 1: Routine Builder ============
+interface RoutineProduct {
+  product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>;
+  stepCategory: ProductCategory;
+  time: 'am' | 'pm';
+}
+
+function StepRoutineBuilder({
   userId,
-  routineDays,
-  cycleLength,
   onNext,
+  onSkip,
   onBack,
 }: {
   userId: string;
-  routineDays: RoutineDay[];
-  cycleLength: number;
-  onNext: () => void;
+  onNext: (products: RoutineProduct[], hasAm: boolean, hasPm: boolean) => void;
+  onSkip: () => void;
   onBack: () => void;
 }) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [assignments, setAssignments] = useState<Record<string, { am: string[]; pm: string[] }>>({});
-  const [activeDay, setActiveDay] = useState(0);
+  const [phase, setPhase] = useState<'ask' | 'am' | 'pm' | 'specials' | 'extras' | 'summary'>('ask');
+  const [hasAm, setHasAm] = useState(false);
+  const [hasPm, setHasPm] = useState(false);
+  const [amStepIndex, setAmStepIndex] = useState(0);
+  const [pmStepIndex, setPmStepIndex] = useState(0);
+  const [products, setProducts] = useState<RoutineProduct[]>([]);
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [specialProducts, setSpecialProducts] = useState<Array<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>>([]);
+  const [extraProducts, setExtraProducts] = useState<Array<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>>([]);
+  const [addingSpecial, setAddingSpecial] = useState(false);
+  const [addingExtra, setAddingExtra] = useState(false);
 
-  useEffect(() => {
-    fetchProducts(userId).then((prods) => {
-      setProducts(prods);
-      // Auto-assign based on routineTime
-      const a: Record<string, { am: string[]; pm: string[] }> = {};
-      routineDays.forEach((d) => {
-        a[d.id] = {
-          am: prods.filter((p) => p.routineTime === 'am' || p.routineTime === 'both').map((p) => p.id),
-          pm: prods.filter((p) => p.routineTime === 'pm' || p.routineTime === 'both').map((p) => p.id),
-        };
-      });
-      setAssignments(a);
-    });
-  }, [userId, routineDays]);
+  const currentSteps = phase === 'am' ? AM_STEPS : PM_STEPS;
+  const currentIndex = phase === 'am' ? amStepIndex : pmStepIndex;
+  const currentStep = currentSteps[currentIndex];
 
-  const toggle = (dayId: string, time: 'am' | 'pm', productId: string) => {
-    setAssignments((prev) => {
-      const current = prev[dayId]?.[time] || [];
-      const next = current.includes(productId)
-        ? current.filter((id) => id !== productId)
-        : [...current, productId];
-      return { ...prev, [dayId]: { ...prev[dayId], [time]: next } };
-    });
+  const productsForCurrentStep = currentStep
+    ? products.filter((p) => p.stepCategory === currentStep.category && p.time === currentStep.time)
+    : [];
+
+  const addProductToStep = async (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!currentStep) return;
+    await storeAddProduct(userId, { ...data, routineTime: currentStep.time, category: currentStep.category });
+    setProducts((prev) => [...prev, { product: data, stepCategory: currentStep.category, time: currentStep.time }]);
+    setAddingProduct(false);
   };
 
-  const handleSave = async () => {
-    const updated = routineDays.map((d) => ({
-      ...d,
-      amProducts: assignments[d.id]?.am || [],
-      pmProducts: assignments[d.id]?.pm || [],
-    }));
-    await updateRoutineDays(userId, updated, cycleLength);
-    onNext();
+  const addSpecialProduct = async (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    await storeAddProduct(userId, { ...data, isActive: true });
+    setSpecialProducts((prev) => [...prev, data]);
+    setAddingSpecial(false);
   };
 
-  const day = routineDays[activeDay];
-  if (!day) return null;
-  const dayAssign = assignments[day.id] || { am: [], pm: [] };
+  const addExtraProduct = async (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    await storeAddProduct(userId, { ...data, isActive: false });
+    setExtraProducts((prev) => [...prev, data]);
+    setAddingExtra(false);
+  };
 
-  return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold text-stone-800">Assign products</h2>
-        <p className="text-sm text-stone-500 mt-1">Select which products go in each routine</p>
-      </div>
+  const goNextStep = () => {
+    if (phase === 'am') {
+      if (amStepIndex < AM_STEPS.length - 1) {
+        setAmStepIndex(amStepIndex + 1);
+        setAddingProduct(false);
+      } else if (hasPm) {
+        setPhase('pm');
+        setAddingProduct(false);
+      } else {
+        setPhase('specials');
+      }
+    } else if (phase === 'pm') {
+      if (pmStepIndex < PM_STEPS.length - 1) {
+        setPmStepIndex(pmStepIndex + 1);
+        setAddingProduct(false);
+      } else {
+        setPhase('specials');
+      }
+    }
+  };
 
-      {routineDays.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {routineDays.map((d, i) => (
-            <button
-              key={d.id}
-              onClick={() => setActiveDay(i)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                i === activeDay ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500'
-              }`}
-            >
-              {d.name}
-            </button>
-          ))}
+  const goPrevStep = () => {
+    if (phase === 'am') {
+      if (amStepIndex > 0) { setAmStepIndex(amStepIndex - 1); setAddingProduct(false); }
+      else setPhase('ask');
+    } else if (phase === 'pm') {
+      if (pmStepIndex > 0) { setPmStepIndex(pmStepIndex - 1); setAddingProduct(false); }
+      else if (hasAm) { setPhase('am'); setAmStepIndex(AM_STEPS.length - 1); setAddingProduct(false); }
+      else setPhase('ask');
+    }
+  };
+
+  const startRoutine = () => {
+    if (hasAm) setPhase('am');
+    else if (hasPm) setPhase('pm');
+  };
+
+  // Ask phase
+  if (phase === 'ask') {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="w-7 h-7 text-rose-500" />
+          </div>
+          <h2 className="text-xl font-semibold text-stone-800">Build your routine</h2>
+          <p className="text-sm text-stone-500 mt-1">We&apos;ll walk through each step and add your products</p>
         </div>
-      )}
 
-      {products.length === 0 ? (
-        <Card className="border-stone-100"><CardContent className="pt-6 pb-6 text-center">
-          <p className="text-sm text-stone-400">No products added yet. You can assign products later.</p>
-        </CardContent></Card>
-      ) : (
-        <>
-          <Card className="border-rose-100">
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-3">
-                <Sun className="w-4 h-4 text-amber-500" />
-                <span className="text-sm font-semibold text-stone-700">Morning</span>
+        <div className="space-y-3">
+          <Card className={`border-2 cursor-pointer transition-colors ${hasAm ? 'border-amber-300 bg-amber-50/50' : 'border-stone-100'}`} onClick={() => setHasAm(!hasAm)}>
+            <CardContent className="pt-4 pb-4 flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${hasAm ? 'bg-amber-200' : 'bg-stone-100'}`}>
+                <Sun className={`w-5 h-5 ${hasAm ? 'text-amber-600' : 'text-stone-400'}`} />
               </div>
-              <div className="flex flex-wrap gap-2">
-                {products.filter((p) => p.routineTime === 'am' || p.routineTime === 'both').map((p) => (
-                  <button key={p.id} onClick={() => toggle(day.id, 'am', p.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                      dayAssign.am.includes(p.id) ? 'bg-rose-100 text-rose-700 border border-rose-300' : 'bg-white text-stone-500 border border-stone-200'
-                    }`}>
-                    {p.name}
-                  </button>
-                ))}
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-stone-700">Morning routine</p>
+                <p className="text-xs text-stone-400">{AM_STEPS.length} steps: cleanser to sunscreen</p>
+              </div>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${hasAm ? 'border-amber-400 bg-amber-400' : 'border-stone-200'}`}>
+                {hasAm && <CheckCircle2 className="w-4 h-4 text-white" />}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-rose-100">
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-3">
-                <Moon className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm font-semibold text-stone-700">Evening</span>
+          <Card className={`border-2 cursor-pointer transition-colors ${hasPm ? 'border-indigo-300 bg-indigo-50/50' : 'border-stone-100'}`} onClick={() => setHasPm(!hasPm)}>
+            <CardContent className="pt-4 pb-4 flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${hasPm ? 'bg-indigo-200' : 'bg-stone-100'}`}>
+                <Moon className={`w-5 h-5 ${hasPm ? 'text-indigo-600' : 'text-stone-400'}`} />
               </div>
-              <div className="flex flex-wrap gap-2">
-                {products.filter((p) => p.routineTime === 'pm' || p.routineTime === 'both').map((p) => (
-                  <button key={p.id} onClick={() => toggle(day.id, 'pm', p.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                      dayAssign.pm.includes(p.id) ? 'bg-indigo-100 text-indigo-700 border border-indigo-300' : 'bg-white text-stone-500 border border-stone-200'
-                    }`}>
-                    {p.name}
-                  </button>
-                ))}
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-stone-700">Evening routine</p>
+                <p className="text-xs text-stone-400">{PM_STEPS.length} steps: cleanser to night cream</p>
+              </div>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${hasPm ? 'border-indigo-400 bg-indigo-400' : 'border-stone-200'}`}>
+                {hasPm && <CheckCircle2 className="w-4 h-4 text-white" />}
               </div>
             </CardContent>
           </Card>
-        </>
-      )}
+        </div>
 
-      <div className="flex gap-3">
-        <Button variant="ghost" onClick={onBack} className="text-stone-400">
+        <Button onClick={startRoutine} disabled={!hasAm && !hasPm} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+          Start Building <ChevronRight className="w-4 h-4 ml-2" />
+        </Button>
+
+        <button onClick={onSkip} className="w-full text-center text-xs text-stone-400 hover:text-rose-500 transition-colors py-2">
+          I don&apos;t have a routine yet — skip and get AI recommendations later
+        </button>
+
+        <Button variant="ghost" onClick={onBack} className="w-full text-stone-400">
           <ChevronLeft className="w-4 h-4 mr-1" /> Back
         </Button>
-        <Button onClick={handleSave} className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+      </div>
+    );
+  }
+
+  // Specials phase — weekly/biweekly treatments (peels, masks, etc.)
+  if (phase === 'specials') {
+    return (
+      <div className="space-y-5">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="w-7 h-7 text-violet-500" />
+          </div>
+          <h2 className="text-xl font-semibold text-stone-800">Special treatments</h2>
+          <p className="text-sm text-stone-500 mt-1">Products you use weekly or less often</p>
+          <p className="text-xs text-stone-400 mt-0.5">Peeling masks, chemical exfoliants, face masks, etc.</p>
+        </div>
+
+        {specialProducts.length > 0 && (
+          <div className="space-y-2">
+            {specialProducts.map((p, i) => (
+              <div key={i} className="flex items-center gap-2 py-2 px-3 bg-violet-50 border border-violet-200 rounded-lg">
+                <CheckCircle2 className="w-4 h-4 text-violet-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-700 truncate">{p.name}</p>
+                  <p className="text-xs text-stone-400">{p.brand} &middot; {p.frequency}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {addingSpecial ? (
+          <Card className="border-violet-100">
+            <CardContent className="pt-4 pb-3">
+              <InlineProductAdder category="exfoliant_strong" onAdd={addSpecialProduct} />
+            </CardContent>
+          </Card>
+        ) : (
+          <button onClick={() => setAddingSpecial(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-violet-200 hover:bg-violet-50 transition-colors">
+            <Plus className="w-4 h-4 text-violet-400" />
+            <span className="text-sm font-medium text-violet-600">Add a treatment</span>
+          </button>
+        )}
+
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={() => {
+            if (hasPm) { setPhase('pm'); setPmStepIndex(PM_STEPS.length - 1); }
+            else if (hasAm) { setPhase('am'); setAmStepIndex(AM_STEPS.length - 1); }
+            else setPhase('ask');
+          }} className="text-stone-400">
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back
+          </Button>
+          <Button onClick={() => setPhase('extras')} className="flex-1 h-11 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+            {specialProducts.length > 0 ? 'Continue' : 'Skip'} <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Extras phase — products you own but don't use daily
+  if (phase === 'extras') {
+    return (
+      <div className="space-y-5">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center mx-auto mb-4">
+            <Package className="w-7 h-7 text-stone-500" />
+          </div>
+          <h2 className="text-xl font-semibold text-stone-800">Other products</h2>
+          <p className="text-sm text-stone-500 mt-1">Products you own but aren&apos;t using right now</p>
+          <p className="text-xs text-stone-400 mt-0.5">Backups, products you&apos;re testing, or ones you paused</p>
+        </div>
+
+        {extraProducts.length > 0 && (
+          <div className="space-y-2">
+            {extraProducts.map((p, i) => (
+              <div key={i} className="flex items-center gap-2 py-2 px-3 bg-stone-50 border border-stone-200 rounded-lg">
+                <Package className="w-4 h-4 text-stone-400" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-stone-700 truncate">{p.name}</p>
+                  <p className="text-xs text-stone-400">{p.brand}</p>
+                </div>
+                <Badge className="text-[9px] bg-stone-100 text-stone-500">Paused</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {addingExtra ? (
+          <Card className="border-stone-200">
+            <CardContent className="pt-4 pb-3">
+              <InlineProductAdder category="serum" onAdd={addExtraProduct} />
+            </CardContent>
+          </Card>
+        ) : (
+          <button onClick={() => setAddingExtra(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-stone-200 hover:bg-stone-50 transition-colors">
+            <Plus className="w-4 h-4 text-stone-400" />
+            <span className="text-sm font-medium text-stone-500">Add a product</span>
+          </button>
+        )}
+
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={() => setPhase('specials')} className="text-stone-400">
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back
+          </Button>
+          <Button onClick={() => setPhase('summary')} className="flex-1 h-11 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+            {extraProducts.length > 0 ? 'Continue' : 'Skip'} <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Summary phase
+  if (phase === 'summary') {
+    const amProds = products.filter((p) => p.time === 'am');
+    const pmProds = products.filter((p) => p.time === 'pm');
+    const totalCount = products.length + specialProducts.length + extraProducts.length;
+
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-stone-800">Looking great!</h2>
+          <p className="text-sm text-stone-500 mt-1">{totalCount} product{totalCount !== 1 ? 's' : ''} added</p>
+        </div>
+
+        {amProds.length > 0 && (
+          <Card className="border-amber-100">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-2"><Sun className="w-4 h-4 text-amber-500" /><span className="text-sm font-semibold text-stone-700">Morning</span></div>
+              {amProds.map((p, i) => (
+                <div key={i} className="flex items-center gap-2 py-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
+                  <span className="text-xs text-stone-600">{p.product.name}</span>
+                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">{CATEGORY_LABELS[p.stepCategory]}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {pmProds.length > 0 && (
+          <Card className="border-indigo-100">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-2"><Moon className="w-4 h-4 text-indigo-400" /><span className="text-sm font-semibold text-stone-700">Evening</span></div>
+              {pmProds.map((p, i) => (
+                <div key={i} className="flex items-center gap-2 py-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
+                  <span className="text-xs text-stone-600">{p.product.name}</span>
+                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">{CATEGORY_LABELS[p.stepCategory]}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {specialProducts.length > 0 && (
+          <Card className="border-violet-100">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-2"><Sparkles className="w-4 h-4 text-violet-500" /><span className="text-sm font-semibold text-stone-700">Special Treatments</span></div>
+              {specialProducts.map((p, i) => (
+                <div key={i} className="flex items-center gap-2 py-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-violet-300" />
+                  <span className="text-xs text-stone-600">{p.name}</span>
+                  <span className="text-[9px] text-stone-400 ml-auto">{p.frequency}</span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {extraProducts.length > 0 && (
+          <Card className="border-stone-100">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-2"><Package className="w-4 h-4 text-stone-400" /><span className="text-sm font-semibold text-stone-700">Other Products</span></div>
+              {extraProducts.map((p, i) => (
+                <div key={i} className="flex items-center gap-2 py-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-stone-300" />
+                  <span className="text-xs text-stone-600">{p.name}</span>
+                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ml-auto">Paused</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        <Button onClick={() => onNext(products, hasAm, hasPm)} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
           Continue <ChevronRight className="w-4 h-4 ml-2" />
+        </Button>
+      </div>
+    );
+  }
+
+  // Step-by-step building phase (AM or PM)
+  const isAm = phase === 'am';
+  const totalInPhase = currentSteps.length;
+  const Icon = isAm ? Sun : Moon;
+  const accentColor = isAm ? 'amber' : 'indigo';
+
+  return (
+    <div className="space-y-5">
+      {/* Phase header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Icon className={`w-4 h-4 text-${accentColor}-500`} />
+          <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+            {isAm ? 'Morning' : 'Evening'} &middot; Step {currentIndex + 1}/{totalInPhase}
+          </span>
+        </div>
+        <div className="flex gap-0.5">
+          {currentSteps.map((_, i) => (
+            <div key={i} className={`w-4 h-1.5 rounded-full ${
+              i < currentIndex ? `bg-${accentColor}-300` : i === currentIndex ? `bg-${accentColor}-500` : 'bg-stone-200'
+            }`} />
+          ))}
+        </div>
+      </div>
+
+      {/* Current step */}
+      {currentStep && (
+        <Card className={`border-${accentColor}-100`}>
+          <CardContent className="pt-5 pb-4">
+            <h3 className="text-lg font-semibold text-stone-800">{currentStep.label}</h3>
+            <p className="text-xs text-stone-500 mt-0.5 mb-4">{currentStep.description}</p>
+
+            {/* Products already added for this step */}
+            {productsForCurrentStep.length > 0 && (
+              <div className="space-y-2 mb-4">
+                {productsForCurrentStep.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2 py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-stone-700 truncate">{p.product.name}</p>
+                      <p className="text-xs text-stone-400">{p.product.brand}</p>
+                    </div>
+                  </div>
+                ))}
+                {!addingProduct && (
+                  <button onClick={() => setAddingProduct(true)}
+                    className="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 mt-1">
+                    <Plus className="w-3 h-3" /> Add alternative product
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Add product UI */}
+            {(productsForCurrentStep.length === 0 || addingProduct) && (
+              <InlineProductAdder category={currentStep.category} onAdd={addProductToStep} />
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Navigation */}
+      <div className="flex gap-3">
+        <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
+          <ChevronLeft className="w-4 h-4 mr-1" /> Back
+        </Button>
+        <Button onClick={goNextStep} className={`flex-1 h-11 rounded-xl text-white ${
+          productsForCurrentStep.length > 0
+            ? 'bg-rose-500 hover:bg-rose-600'
+            : 'bg-stone-300 hover:bg-stone-400'
+        }`}>
+          {productsForCurrentStep.length > 0 ? (
+            <>Next Step <ChevronRight className="w-4 h-4 ml-1" /></>
+          ) : (
+            <><SkipForward className="w-4 h-4 mr-1" /> I don&apos;t use this</>
+          )}
         </Button>
       </div>
     </div>
   );
 }
 
-// ============ Step 4: Face Photos ============
+// ============ Step 2: Face Photos ============
 function StepFacePhotos({
   userId,
   onNext,
@@ -678,11 +696,8 @@ function StepFacePhotos({
       const { storagePath, publicUrl } = await uploadFacePhoto(userId, file);
       await saveFacePhotoRecord(userId, storagePath, publicUrl);
       setPhotos((prev) => [...prev, { id: storagePath, url: URL.createObjectURL(file) }]);
-    } catch {
-      // silently fail for MVP
-    } finally {
-      setUploading(false);
-    }
+    } catch { /* silently fail for MVP */ }
+    finally { setUploading(false); }
   };
 
   return (
@@ -710,27 +725,17 @@ function StepFacePhotos({
           </div>
         ))}
         {photos.length < 5 && (
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="aspect-square rounded-xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-1 hover:bg-rose-50 transition-colors"
-          >
-            {uploading ? (
-              <Loader2 className="w-6 h-6 text-rose-300 animate-spin" />
-            ) : (
-              <>
-                <Camera className="w-6 h-6 text-rose-300" />
-                <span className="text-[10px] text-stone-400">{photos.length === 0 ? 'Add photo' : 'Add more'}</span>
-              </>
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="aspect-square rounded-xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-1 hover:bg-rose-50 transition-colors">
+            {uploading ? <Loader2 className="w-6 h-6 text-rose-300 animate-spin" /> : (
+              <><Camera className="w-6 h-6 text-rose-300" /><span className="text-[10px] text-stone-400">{photos.length === 0 ? 'Add photo' : 'Add more'}</span></>
             )}
           </button>
         )}
       </div>
 
       <div className="flex gap-3">
-        <Button variant="ghost" onClick={onBack} className="text-stone-400">
-          <ChevronLeft className="w-4 h-4 mr-1" /> Back
-        </Button>
+        <Button variant="ghost" onClick={onBack} className="text-stone-400"><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
         <Button onClick={onNext} className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
           {photos.length > 0 ? 'Continue' : 'Skip for now'} <ChevronRight className="w-4 h-4 ml-2" />
         </Button>
@@ -739,16 +744,8 @@ function StepFacePhotos({
   );
 }
 
-// ============ Step 5: Done ============
-function StepDone({
-  productCount,
-  cycleLength,
-  onFinish,
-}: {
-  productCount: number;
-  cycleLength: number;
-  onFinish: () => void;
-}) {
+// ============ Step 3: Done ============
+function StepDone({ productCount, onFinish }: { productCount: number; onFinish: () => void }) {
   return (
     <div className="space-y-8 text-center pt-8">
       <div>
@@ -756,47 +753,25 @@ function StepDone({
           <CheckCircle2 className="w-10 h-10 text-white" />
         </div>
         <h2 className="text-2xl font-semibold text-stone-800">You&apos;re all set!</h2>
-        <p className="text-sm text-stone-500 mt-2">Your skincare routine is ready to go</p>
+        <p className="text-sm text-stone-500 mt-2">
+          {productCount > 0
+            ? `${productCount} product${productCount !== 1 ? 's' : ''} added to your routine`
+            : 'Your account is ready — add products anytime'}
+        </p>
       </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="border-rose-100">
-          <CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-semibold text-rose-600">{productCount}</p>
-            <p className="text-xs text-stone-500">Products</p>
-          </CardContent>
-        </Card>
-        <Card className="border-rose-100">
-          <CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-semibold text-rose-600">{cycleLength}</p>
-            <p className="text-xs text-stone-500">{cycleLength === 1 ? 'Day routine' : 'Day cycle'}</p>
-          </CardContent>
-        </Card>
-      </div>
-
       <Button onClick={onFinish} className="w-full h-14 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-base font-semibold">
-        <Sparkles className="w-5 h-5 mr-2" />
-        Start Your Routine
+        <Sparkles className="w-5 h-5 mr-2" /> Start Your Routine
       </Button>
     </div>
   );
 }
 
 // ============ Main Wizard ============
-// Steps: 0=disclaimer, 1=routine, 2=products, 3=assign, 4=photos, 5=done
-// If user skips routine (no routine yet), flow is: 0→1→2→4→5 (skip 3)
-
 export default function OnboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [routineDays, setRoutineDays] = useState<RoutineDay[]>([]);
-  const [cycleLength, setCycleLength] = useState(0);
   const [productCount, setProductCount] = useState(0);
-  const [skippedRoutine, setSkippedRoutine] = useState(false);
-
-  const totalSteps = skippedRoutine ? 5 : 6;
-  const visualStep = skippedRoutine && step > 2 ? step - 1 : step;
 
   const handleDisclaimerDone = useCallback(async () => {
     if (!user) return;
@@ -804,43 +779,41 @@ export default function OnboardPage() {
     setStep(1);
   }, [user]);
 
-  const handleRoutineSkip = useCallback(() => {
-    setSkippedRoutine(true);
-    setStep(2);
-  }, []);
-
-  const handleRoutineDone = useCallback(async (data: {
-    hasMorning: boolean; hasEvening: boolean; cycleLength: number; dayNames: string[];
-  }) => {
+  const handleRoutineDone = useCallback(async (
+    products: RoutineProduct[],
+    hasAm: boolean,
+    hasPm: boolean,
+  ) => {
     if (!user) return;
-    const days: RoutineDay[] = data.dayNames.map((name, i) => ({
-      id: `rd_${Date.now()}_${i}`,
-      dayNumber: i + 1,
-      name: data.cycleLength === 1 ? 'Daily Routine' : name,
-      amProducts: [],
-      pmProducts: [],
-    }));
-    await updateRoutineDays(user.id, days, data.cycleLength);
-    setRoutineDays(days);
-    setCycleLength(data.cycleLength);
-    setSkippedRoutine(false);
+    setProductCount(products.length);
+
+    // Build a single routine day with AM/PM product IDs
+    // Products were already saved to DB in the builder, fetch their IDs
+    const { fetchProducts } = await import('@/lib/store');
+    const savedProducts = await fetchProducts(user.id);
+
+    const amIds = savedProducts.filter((p) => p.routineTime === 'am' || p.routineTime === 'both').map((p) => p.id);
+    const pmIds = savedProducts.filter((p) => p.routineTime === 'pm' || p.routineTime === 'both').map((p) => p.id);
+
+    if (hasAm || hasPm) {
+      const day: RoutineDay = {
+        id: `rd_${Date.now()}`,
+        dayNumber: 1,
+        name: 'Daily Routine',
+        amProducts: hasAm ? amIds : [],
+        pmProducts: hasPm ? pmIds : [],
+      };
+      await updateRoutineDays(user.id, [day], 1);
+    }
+
     setStep(2);
   }, [user]);
 
-  const handleProductsDone = useCallback(async () => {
-    if (!user) return;
-    const prods = await fetchProducts(user.id);
-    setProductCount(prods.length);
-    if (skippedRoutine) {
-      setStep(4); // skip assign step
-    } else {
-      setStep(3);
-    }
-  }, [user, skippedRoutine]);
+  const handleRoutineSkip = useCallback(() => {
+    setStep(2);
+  }, []);
 
-  const handleAssignDone = useCallback(() => setStep(4), []);
-
-  const handlePhotosDone = useCallback(() => setStep(5), []);
+  const handlePhotosDone = useCallback(() => setStep(3), []);
 
   const handleFinish = useCallback(async () => {
     if (!user) return;
@@ -853,14 +826,12 @@ export default function OnboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white">
       <div className="max-w-lg mx-auto px-5 pt-12 pb-8">
-        <ProgressDots current={visualStep} total={totalSteps} />
+        <ProgressDots current={step} total={4} />
 
         {step === 0 && <StepDisclaimer onNext={handleDisclaimerDone} />}
-        {step === 1 && <StepRoutineSetup onNext={handleRoutineDone} onSkip={handleRoutineSkip} onBack={() => setStep(0)} />}
-        {step === 2 && <StepAddProducts userId={user.id} onNext={handleProductsDone} onBack={() => setStep(1)} />}
-        {step === 3 && !skippedRoutine && <StepAssignRoutine userId={user.id} routineDays={routineDays} cycleLength={cycleLength} onNext={handleAssignDone} onBack={() => setStep(2)} />}
-        {step === 4 && <StepFacePhotos userId={user.id} onNext={handlePhotosDone} onBack={() => setStep(skippedRoutine ? 2 : 3)} />}
-        {step === 5 && <StepDone productCount={productCount} cycleLength={cycleLength} onFinish={handleFinish} />}
+        {step === 1 && <StepRoutineBuilder userId={user.id} onNext={handleRoutineDone} onSkip={handleRoutineSkip} onBack={() => setStep(0)} />}
+        {step === 2 && <StepFacePhotos userId={user.id} onNext={handlePhotosDone} onBack={() => setStep(1)} />}
+        {step === 3 && <StepDone productCount={productCount} onFinish={handleFinish} />}
       </div>
     </div>
   );
