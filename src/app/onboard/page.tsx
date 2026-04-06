@@ -12,11 +12,12 @@ import {
   addProduct as storeAddProduct,
   updateRoutineDays,
   saveDisclaimerAgreement,
+  saveSkinProfile,
   completeOnboarding,
   uploadFacePhoto,
   saveFacePhotoRecord,
 } from '@/lib/store';
-import { Product, ProductCategory, RoutineDay } from '@/lib/types';
+import { Product, ProductCategory, RoutineDay, SkinGoal, SkinConcern } from '@/lib/types';
 import {
   Sparkles, Sun, Moon, Camera, Loader2, X,
   ChevronRight, ChevronLeft, UserCircle, ImageIcon, Package,
@@ -53,6 +54,36 @@ const PM_STEPS: RoutineStepDef[] = [
   { category: 'oil', labelKey: 'cat.oil', descriptionKey: 'onboard.step.oil.pm', time: 'pm' },
   { category: 'night_cream', labelKey: 'cat.night_cream', descriptionKey: 'onboard.step.night_cream.pm', time: 'pm' },
 ];
+
+const GOALS: { key: SkinGoal; emoji: string }[] = [
+  { key: 'anti_aging', emoji: '🧴' },
+  { key: 'hydration', emoji: '💧' },
+  { key: 'acne_control', emoji: '🎯' },
+  { key: 'even_tone', emoji: '✨' },
+  { key: 'glow', emoji: '🌟' },
+  { key: 'pore_minimizing', emoji: '🔬' },
+  { key: 'reduce_redness', emoji: '🩹' },
+  { key: 'sun_protection', emoji: '☀️' },
+];
+
+const CONCERNS: { key: SkinConcern; emoji: string }[] = [
+  { key: 'dryness', emoji: '🏜️' },
+  { key: 'oily_skin', emoji: '💦' },
+  { key: 'acne', emoji: '😣' },
+  { key: 'dark_spots', emoji: '🟤' },
+  { key: 'wrinkles', emoji: '〰️' },
+  { key: 'redness', emoji: '🔴' },
+  { key: 'dull_skin', emoji: '😶' },
+  { key: 'large_pores', emoji: '🕳️' },
+  { key: 'sensitivity', emoji: '🌸' },
+];
+
+// ============ Tracked product during onboarding ============
+interface RoutineProduct {
+  product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>;
+  stepCategory: ProductCategory;
+  time: 'am' | 'pm';
+}
 
 // ============ Progress Dots ============
 function ProgressDots({ current, total }: { current: number; total: number }) {
@@ -110,6 +141,105 @@ function StepDisclaimer({ onNext }: { onNext: () => void }) {
 
       <Button onClick={onNext} disabled={!agreed} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
         {t('onboard.disclaimer.agree')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
+      </Button>
+    </div>
+  );
+}
+
+// ============ Step 1: Skin Goals & Concerns ============
+function StepGoalsConcerns({
+  userId,
+  onNext,
+  onBack,
+}: {
+  userId: string;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  const { t } = useLocale();
+  const [selectedGoals, setSelectedGoals] = useState<Set<SkinGoal>>(new Set());
+  const [selectedConcerns, setSelectedConcerns] = useState<Set<SkinConcern>>(new Set());
+
+  const toggleGoal = (g: SkinGoal) => {
+    setSelectedGoals((prev) => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g);
+      else next.add(g);
+      return next;
+    });
+  };
+
+  const toggleConcern = (c: SkinConcern) => {
+    setSelectedConcerns((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
+      return next;
+    });
+  };
+
+  const handleContinue = async () => {
+    await saveSkinProfile(userId, Array.from(selectedGoals), Array.from(selectedConcerns));
+    onNext();
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Goals section */}
+      <div>
+        <div className="text-center mb-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="w-7 h-7 text-rose-500" />
+          </div>
+          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.goals.title')}</h2>
+          <p className="text-sm text-stone-500 mt-1">{t('onboard.goals.subtitle')}</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {GOALS.map(({ key, emoji }) => (
+            <button
+              key={key}
+              onClick={() => toggleGoal(key)}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-start transition-colors ${
+                selectedGoals.has(key)
+                  ? 'border-rose-300 bg-rose-50 text-rose-700'
+                  : 'border-stone-100 text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <span className="text-lg">{emoji}</span>
+              <span className="text-sm font-medium">{t(`onboard.goals.${key}`)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Concerns section */}
+      <div>
+        <h3 className="text-lg font-semibold text-stone-800 mb-3">{t('onboard.concerns.title')}</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {CONCERNS.map(({ key, emoji }) => (
+            <button
+              key={key}
+              onClick={() => toggleConcern(key)}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-start transition-colors ${
+                selectedConcerns.has(key)
+                  ? 'border-amber-300 bg-amber-50 text-amber-700'
+                  : 'border-stone-100 text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <span className="text-lg">{emoji}</span>
+              <span className="text-sm font-medium">{t(`onboard.concerns.${key}`)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <Button onClick={handleContinue} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+        {t('common.continue')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
+      </Button>
+      <Button variant="ghost" onClick={onBack} className="w-full text-stone-400">
+        <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
       </Button>
     </div>
   );
@@ -213,6 +343,7 @@ function InlineProductAdder({
     return (
       <div className="space-y-3">
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+        <p className="text-xs text-stone-500 text-center">{t('onboard.step.photoHint')}</p>
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => { fileRef.current?.setAttribute('capture', 'environment'); fileRef.current?.click(); }}
             className="flex flex-col items-center gap-1.5 p-4 rounded-lg border-2 border-dashed border-rose-200 hover:bg-rose-50 transition-colors">
@@ -234,7 +365,7 @@ function InlineProductAdder({
       <button onClick={() => setMode('photo')}
         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-rose-200 hover:bg-rose-50 transition-colors">
         <Camera className="w-4 h-4 text-rose-400" />
-        <span className="text-xs font-medium text-stone-600">{t('add.scanPhoto')}</span>
+        <span className="text-xs font-medium text-stone-600">{t('onboard.step.addProduct')}</span>
       </button>
       <button onClick={() => setMode('manual')}
         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-stone-200 hover:bg-stone-50 transition-colors">
@@ -245,385 +376,131 @@ function InlineProductAdder({
   );
 }
 
-// ============ Step 1: Routine Builder ============
-interface RoutineProduct {
-  product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>;
-  stepCategory: ProductCategory;
-  time: 'am' | 'pm';
-}
-
-function StepRoutineBuilder({
+// ============ Step 2: Morning Routine Builder ============
+function StepMorningRoutine({
   userId,
   onNext,
-  onSkip,
   onBack,
+  products,
+  setProducts,
 }: {
   userId: string;
-  onNext: (products: RoutineProduct[], hasAm: boolean, hasPm: boolean) => void;
-  onSkip: () => void;
+  onNext: (continueEvening: boolean) => void;
   onBack: () => void;
+  products: RoutineProduct[];
+  setProducts: React.Dispatch<React.SetStateAction<RoutineProduct[]>>;
 }) {
   const { t } = useLocale();
-  const [phase, setPhase] = useState<'ask' | 'am' | 'pm' | 'specials' | 'extras' | 'summary'>('ask');
-  const [hasAm, setHasAm] = useState(false);
-  const [hasPm, setHasPm] = useState(false);
-  const [amStepIndex, setAmStepIndex] = useState(0);
-  const [pmStepIndex, setPmStepIndex] = useState(0);
-  const [products, setProducts] = useState<RoutineProduct[]>([]);
+  const [stepIndex, setStepIndex] = useState(0);
   const [addingProduct, setAddingProduct] = useState(false);
-  const [specialProducts, setSpecialProducts] = useState<Array<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>>([]);
-  const [extraProducts, setExtraProducts] = useState<Array<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>>([]);
-  const [addingSpecial, setAddingSpecial] = useState(false);
-  const [addingExtra, setAddingExtra] = useState(false);
+  const [addingCustom, setAddingCustom] = useState(false);
+  const [customStepName, setCustomStepName] = useState('');
+  const [customSteps, setCustomSteps] = useState<RoutineStepDef[]>([]);
+  const [done, setDone] = useState(false);
 
-  const currentSteps = phase === 'am' ? AM_STEPS : PM_STEPS;
-  const currentIndex = phase === 'am' ? amStepIndex : pmStepIndex;
-  const currentStep = currentSteps[currentIndex];
-
+  const allSteps = [...AM_STEPS, ...customSteps];
+  const currentStep = allSteps[stepIndex];
   const productsForCurrentStep = currentStep
-    ? products.filter((p) => p.stepCategory === currentStep.category && p.time === currentStep.time)
+    ? products.filter((p) => p.stepCategory === currentStep.category && p.time === 'am')
     : [];
 
   const addProductToStep = async (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!currentStep) return;
-    await storeAddProduct(userId, { ...data, routineTime: currentStep.time, category: currentStep.category });
-    setProducts((prev) => [...prev, { product: data, stepCategory: currentStep.category, time: currentStep.time }]);
+    await storeAddProduct(userId, { ...data, routineTime: 'am', category: currentStep.category });
+    setProducts((prev) => [...prev, { product: data, stepCategory: currentStep.category, time: 'am' }]);
     setAddingProduct(false);
   };
 
-  const addSpecialProduct = async (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    await storeAddProduct(userId, { ...data, isActive: true });
-    setSpecialProducts((prev) => [...prev, data]);
-    setAddingSpecial(false);
-  };
-
-  const addExtraProduct = async (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    await storeAddProduct(userId, { ...data, isActive: false });
-    setExtraProducts((prev) => [...prev, data]);
-    setAddingExtra(false);
-  };
-
   const goNextStep = () => {
-    if (phase === 'am') {
-      if (amStepIndex < AM_STEPS.length - 1) {
-        setAmStepIndex(amStepIndex + 1);
-        setAddingProduct(false);
-      } else if (hasPm) {
-        setPhase('pm');
-        setAddingProduct(false);
-      } else {
-        setPhase('specials');
-      }
-    } else if (phase === 'pm') {
-      if (pmStepIndex < PM_STEPS.length - 1) {
-        setPmStepIndex(pmStepIndex + 1);
-        setAddingProduct(false);
-      } else {
-        setPhase('specials');
-      }
+    setAddingProduct(false);
+    if (stepIndex < allSteps.length - 1) {
+      setStepIndex(stepIndex + 1);
+    } else {
+      setDone(true);
     }
   };
 
   const goPrevStep = () => {
-    if (phase === 'am') {
-      if (amStepIndex > 0) { setAmStepIndex(amStepIndex - 1); setAddingProduct(false); }
-      else setPhase('ask');
-    } else if (phase === 'pm') {
-      if (pmStepIndex > 0) { setPmStepIndex(pmStepIndex - 1); setAddingProduct(false); }
-      else if (hasAm) { setPhase('am'); setAmStepIndex(AM_STEPS.length - 1); setAddingProduct(false); }
-      else setPhase('ask');
+    setAddingProduct(false);
+    if (stepIndex > 0) {
+      setStepIndex(stepIndex - 1);
+    } else {
+      onBack();
     }
   };
 
-  const startRoutine = () => {
-    if (hasAm) setPhase('am');
-    else if (hasPm) setPhase('pm');
+  const handleAddCustomStep = () => {
+    if (!customStepName.trim()) return;
+    const newStep: RoutineStepDef = {
+      category: customStepName.toLowerCase().replace(/\s+/g, '_') as ProductCategory,
+      labelKey: customStepName,
+      descriptionKey: '',
+      time: 'am',
+    };
+    setCustomSteps((prev) => [...prev, newStep]);
+    setAddingCustom(false);
+    setCustomStepName('');
+    // Jump to the new custom step
+    setStepIndex(allSteps.length); // Will be the index of the newly added step
   };
 
-  // Ask phase
-  if (phase === 'ask') {
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center mx-auto mb-4">
-            <Sparkles className="w-7 h-7 text-rose-500" />
-          </div>
-          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.routine.title')}</h2>
-          <p className="text-sm text-stone-500 mt-1">{t('onboard.routine.subtitle')}</p>
-        </div>
-
-        <div className="space-y-3">
-          <Card className={`border-2 cursor-pointer transition-colors ${hasAm ? 'border-amber-300 bg-amber-50/50' : 'border-stone-100'}`} onClick={() => setHasAm(!hasAm)}>
-            <CardContent className="pt-4 pb-4 flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${hasAm ? 'bg-amber-200' : 'bg-stone-100'}`}>
-                <Sun className={`w-5 h-5 ${hasAm ? 'text-amber-600' : 'text-stone-400'}`} />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-stone-700">{t('common.morning')}</p>
-                <p className="text-xs text-stone-400">{t('onboard.routine.morningSteps').replace('{n}', String(AM_STEPS.length))}</p>
-              </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${hasAm ? 'border-amber-400 bg-amber-400' : 'border-stone-200'}`}>
-                {hasAm && <CheckCircle2 className="w-4 h-4 text-white" />}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`border-2 cursor-pointer transition-colors ${hasPm ? 'border-indigo-300 bg-indigo-50/50' : 'border-stone-100'}`} onClick={() => setHasPm(!hasPm)}>
-            <CardContent className="pt-4 pb-4 flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${hasPm ? 'bg-indigo-200' : 'bg-stone-100'}`}>
-                <Moon className={`w-5 h-5 ${hasPm ? 'text-indigo-600' : 'text-stone-400'}`} />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-stone-700">{t('common.evening')}</p>
-                <p className="text-xs text-stone-400">{t('onboard.routine.eveningSteps').replace('{n}', String(PM_STEPS.length))}</p>
-              </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${hasPm ? 'border-indigo-400 bg-indigo-400' : 'border-stone-200'}`}>
-                {hasPm && <CheckCircle2 className="w-4 h-4 text-white" />}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Button onClick={startRoutine} disabled={!hasAm && !hasPm} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-          {t('onboard.routine.start')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
-        </Button>
-
-        <button onClick={onSkip} className="w-full text-center text-xs text-stone-400 hover:text-rose-500 transition-colors py-2">
-          {t('onboard.routine.noRoutine')}
-        </button>
-
-        <Button variant="ghost" onClick={onBack} className="w-full text-stone-400">
-          <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
-        </Button>
-      </div>
-    );
-  }
-
-  // Specials phase — weekly/biweekly treatments (peels, masks, etc.)
-  if (phase === 'specials') {
-    return (
-      <div className="space-y-5">
-        <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mx-auto mb-4">
-            <Sparkles className="w-7 h-7 text-violet-500" />
-          </div>
-          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.specials.title')}</h2>
-          <p className="text-sm text-stone-500 mt-1">{t('onboard.specials.subtitle')}</p>
-          <p className="text-xs text-stone-400 mt-0.5">{t('onboard.specials.hint')}</p>
-        </div>
-
-        {specialProducts.length > 0 && (
-          <div className="space-y-2">
-            {specialProducts.map((p, i) => (
-              <div key={i} className="flex items-center gap-2 py-2 px-3 bg-violet-50 border border-violet-200 rounded-lg">
-                <CheckCircle2 className="w-4 h-4 text-violet-500" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-700 truncate">{p.name}</p>
-                  <p className="text-xs text-stone-400">{p.brand} &middot; {p.frequency}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {addingSpecial ? (
-          <Card className="border-violet-100">
-            <CardContent className="pt-4 pb-3">
-              <InlineProductAdder category="exfoliant_strong" onAdd={addSpecialProduct} />
-            </CardContent>
-          </Card>
-        ) : (
-          <button onClick={() => setAddingSpecial(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-violet-200 hover:bg-violet-50 transition-colors">
-            <Plus className="w-4 h-4 text-violet-400" />
-            <span className="text-sm font-medium text-violet-600">{t('onboard.specials.add')}</span>
-          </button>
-        )}
-
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={() => {
-            if (hasPm) { setPhase('pm'); setPmStepIndex(PM_STEPS.length - 1); }
-            else if (hasAm) { setPhase('am'); setAmStepIndex(AM_STEPS.length - 1); }
-            else setPhase('ask');
-          }} className="text-stone-400">
-            <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
-          </Button>
-          <Button onClick={() => setPhase('extras')} className="flex-1 h-11 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-            {specialProducts.length > 0 ? t('common.continue') : t('common.skip')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" />
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Extras phase — products you own but don't use daily
-  if (phase === 'extras') {
-    return (
-      <div className="space-y-5">
-        <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center mx-auto mb-4">
-            <Package className="w-7 h-7 text-stone-500" />
-          </div>
-          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.extras.title')}</h2>
-          <p className="text-sm text-stone-500 mt-1">{t('onboard.extras.subtitle')}</p>
-          <p className="text-xs text-stone-400 mt-0.5">{t('onboard.extras.hint')}</p>
-        </div>
-
-        {extraProducts.length > 0 && (
-          <div className="space-y-2">
-            {extraProducts.map((p, i) => (
-              <div key={i} className="flex items-center gap-2 py-2 px-3 bg-stone-50 border border-stone-200 rounded-lg">
-                <Package className="w-4 h-4 text-stone-400" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-700 truncate">{p.name}</p>
-                  <p className="text-xs text-stone-400">{p.brand}</p>
-                </div>
-                <Badge className="text-[9px] bg-stone-100 text-stone-500">{t('common.paused')}</Badge>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {addingExtra ? (
-          <Card className="border-stone-200">
-            <CardContent className="pt-4 pb-3">
-              <InlineProductAdder category="serum" onAdd={addExtraProduct} />
-            </CardContent>
-          </Card>
-        ) : (
-          <button onClick={() => setAddingExtra(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-stone-200 hover:bg-stone-50 transition-colors">
-            <Plus className="w-4 h-4 text-stone-400" />
-            <span className="text-sm font-medium text-stone-500">{t('onboard.extras.add')}</span>
-          </button>
-        )}
-
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={() => setPhase('specials')} className="text-stone-400">
-            <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
-          </Button>
-          <Button onClick={() => setPhase('summary')} className="flex-1 h-11 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-            {extraProducts.length > 0 ? t('common.continue') : t('common.skip')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" />
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Summary phase
-  if (phase === 'summary') {
-    const amProds = products.filter((p) => p.time === 'am');
-    const pmProds = products.filter((p) => p.time === 'pm');
-    const totalCount = products.length + specialProducts.length + extraProducts.length;
-
+  // Done summary
+  if (done) {
+    const amCount = products.filter((p) => p.time === 'am').length;
     return (
       <div className="space-y-6">
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-7 h-7 text-emerald-600" />
           </div>
-          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.summary.title')}</h2>
-          <p className="text-sm text-stone-500 mt-1">{t('onboard.summary.products').replace('{n}', String(totalCount))}</p>
+          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.am.done')}</h2>
+          <p className="text-sm text-stone-500 mt-1">{amCount} {t('common.morning').toLowerCase()}</p>
         </div>
 
-        {amProds.length > 0 && (
-          <Card className="border-amber-100">
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-2"><Sun className="w-4 h-4 text-amber-500" /><span className="text-sm font-semibold text-stone-700">{t('common.morning')}</span></div>
-              {amProds.map((p, i) => (
-                <div key={i} className="flex items-center gap-2 py-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
-                  <span className="text-xs text-stone-600">{p.product.name}</span>
-                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ms-auto">{t('cat.' + p.stepCategory)}</Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {pmProds.length > 0 && (
-          <Card className="border-indigo-100">
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-2"><Moon className="w-4 h-4 text-indigo-400" /><span className="text-sm font-semibold text-stone-700">{t('common.evening')}</span></div>
-              {pmProds.map((p, i) => (
-                <div key={i} className="flex items-center gap-2 py-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
-                  <span className="text-xs text-stone-600">{p.product.name}</span>
-                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ms-auto">{t('cat.' + p.stepCategory)}</Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {specialProducts.length > 0 && (
-          <Card className="border-violet-100">
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-2"><Sparkles className="w-4 h-4 text-violet-500" /><span className="text-sm font-semibold text-stone-700">{t('onboard.summary.specials')}</span></div>
-              {specialProducts.map((p, i) => (
-                <div key={i} className="flex items-center gap-2 py-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-violet-300" />
-                  <span className="text-xs text-stone-600">{p.name}</span>
-                  <span className="text-[9px] text-stone-400 ms-auto">{p.frequency}</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {extraProducts.length > 0 && (
-          <Card className="border-stone-100">
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-2"><Package className="w-4 h-4 text-stone-400" /><span className="text-sm font-semibold text-stone-700">{t('onboard.summary.extras')}</span></div>
-              {extraProducts.map((p, i) => (
-                <div key={i} className="flex items-center gap-2 py-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-stone-300" />
-                  <span className="text-xs text-stone-600">{p.name}</span>
-                  <Badge className="text-[9px] bg-stone-100 text-stone-500 ms-auto">{t('common.paused')}</Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        <Button onClick={() => onNext(products, hasAm, hasPm)} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-          {t('common.continue')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
+        <Button onClick={() => onNext(true)} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+          <Moon className="w-4 h-4 me-2" /> {t('onboard.am.continueEvening')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
         </Button>
+        <button onClick={() => onNext(false)} className="w-full text-center text-xs text-stone-400 hover:text-rose-500 transition-colors py-2">
+          {t('onboard.am.skipEvening')}
+        </button>
       </div>
     );
   }
-
-  // Step-by-step building phase (AM or PM)
-  const isAm = phase === 'am';
-  const totalInPhase = currentSteps.length;
-  const Icon = isAm ? Sun : Moon;
-  const accentColor = isAm ? 'amber' : 'indigo';
 
   return (
     <div className="space-y-5">
       {/* Phase header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon className={`w-4 h-4 text-${accentColor}-500`} />
+          <Sun className="w-4 h-4 text-amber-500" />
           <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
-            {isAm ? t('common.morning') : t('common.evening')} &middot; {t('onboard.routine.step').replace('{n}', String(currentIndex + 1)).replace('{total}', String(totalInPhase))}
+            {t('onboard.am.title')}
           </span>
         </div>
         <div className="flex gap-0.5">
-          {currentSteps.map((_, i) => (
+          {allSteps.map((_, i) => (
             <div key={i} className={`w-4 h-1.5 rounded-full ${
-              i < currentIndex ? `bg-${accentColor}-300` : i === currentIndex ? `bg-${accentColor}-500` : 'bg-stone-200'
+              i < stepIndex ? 'bg-amber-300' : i === stepIndex ? 'bg-amber-500' : 'bg-stone-200'
             }`} />
           ))}
         </div>
       </div>
+      <p className="text-xs text-stone-400">{t('onboard.am.subtitle')}</p>
 
       {/* Current step */}
       {currentStep && (
-        <Card className={`border-${accentColor}-100`}>
+        <Card className="border-amber-100">
           <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-amber-500 font-semibold mb-1">
+              Step {stepIndex + 1}/{allSteps.length}
+            </p>
             <h3 className="text-lg font-semibold text-stone-800">{t(currentStep.labelKey)}</h3>
-            <p className="text-xs text-stone-500 mt-0.5 mb-4">{t(currentStep.descriptionKey)}</p>
+            <p className="text-sm text-stone-600 mt-1 mb-1">
+              {t('onboard.step.doYouUse', { step: t(currentStep.labelKey).toLowerCase(), time: t('common.morning').toLowerCase() })}
+            </p>
+            {currentStep.descriptionKey && (
+              <p className="text-xs text-stone-400 mb-4">{t(currentStep.descriptionKey)}</p>
+            )}
 
             {/* Products already added for this step */}
             {productsForCurrentStep.length > 0 && (
@@ -640,7 +517,7 @@ function StepRoutineBuilder({
                 {!addingProduct && (
                   <button onClick={() => setAddingProduct(true)}
                     className="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 mt-1">
-                    <Plus className="w-3 h-3" /> {t('onboard.routine.addAlt')}
+                    <Plus className="w-3 h-3" /> {t('onboard.step.addAnother')}
                   </button>
                 )}
               </div>
@@ -650,6 +527,32 @@ function StepRoutineBuilder({
             {(productsForCurrentStep.length === 0 || addingProduct) && (
               <InlineProductAdder category={currentStep.category} onAdd={addProductToStep} />
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add custom step button */}
+      {!addingCustom ? (
+        <button onClick={() => setAddingCustom(true)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-stone-200 hover:bg-stone-50 transition-colors">
+          <Plus className="w-4 h-4 text-stone-400" />
+          <span className="text-xs font-medium text-stone-500">{t('onboard.step.addCustomStep')}</span>
+        </button>
+      ) : (
+        <Card className="border-stone-200">
+          <CardContent className="pt-4 pb-3 space-y-3">
+            <p className="text-sm font-medium text-stone-700">{t('onboard.step.customStepName')}</p>
+            <input
+              type="text"
+              value={customStepName}
+              onChange={(e) => setCustomStepName(e.target.value)}
+              placeholder={t('onboard.step.customStepPlaceholder')}
+              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm"
+            />
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => { setAddingCustom(false); setCustomStepName(''); }}>{t('common.cancel')}</Button>
+              <Button size="sm" onClick={handleAddCustomStep} disabled={!customStepName.trim()} className="bg-rose-500 hover:bg-rose-600 text-white">{t('common.save')}</Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -665,9 +568,9 @@ function StepRoutineBuilder({
             : 'bg-stone-300 hover:bg-stone-400'
         }`}>
           {productsForCurrentStep.length > 0 ? (
-            <>{t('onboard.routine.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></>
+            <>{t('onboard.step.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></>
           ) : (
-            <><SkipForward className="w-4 h-4 me-1" /> {t('onboard.routine.dontUse')}</>
+            <><SkipForward className="w-4 h-4 me-1" /> {t('onboard.step.dontUse')}</>
           )}
         </Button>
       </div>
@@ -675,7 +578,501 @@ function StepRoutineBuilder({
   );
 }
 
-// ============ Step 2: Face Photos ============
+// ============ Step 3: Evening Routine Builder ============
+interface EveningDayVariation {
+  name: string;
+  products: RoutineProduct[];
+}
+
+function StepEveningRoutine({
+  userId,
+  onNext,
+  onBack,
+  products,
+  setProducts,
+}: {
+  userId: string;
+  onNext: (dayVariations: EveningDayVariation[]) => void;
+  onBack: () => void;
+  products: RoutineProduct[];
+  setProducts: React.Dispatch<React.SetStateAction<RoutineProduct[]>>;
+}) {
+  const { t } = useLocale();
+  const [stepIndex, setStepIndex] = useState(0);
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [addingCustom, setAddingCustom] = useState(false);
+  const [customStepName, setCustomStepName] = useState('');
+  const [customSteps, setCustomSteps] = useState<RoutineStepDef[]>([]);
+  const [done, setDone] = useState(false);
+  const [askingVariation, setAskingVariation] = useState(false);
+  const [dayVariations, setDayVariations] = useState<EveningDayVariation[]>([]);
+  const [addingNewDay, setAddingNewDay] = useState(false);
+  const [newDayName, setNewDayName] = useState('');
+  // Track current variation's products separately
+  const [variationProducts, setVariationProducts] = useState<RoutineProduct[]>([]);
+  const [buildingVariation, setBuildingVariation] = useState(false);
+  const [variationStepIndex, setVariationStepIndex] = useState(0);
+
+  const allSteps = [...PM_STEPS, ...customSteps];
+  const currentStep = buildingVariation ? allSteps[variationStepIndex] : allSteps[stepIndex];
+  const currentProducts = buildingVariation ? variationProducts : products;
+  const productsForCurrentStep = currentStep
+    ? currentProducts.filter((p) => p.stepCategory === currentStep.category && p.time === 'pm')
+    : [];
+
+  const addProductToStep = async (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!currentStep) return;
+    await storeAddProduct(userId, { ...data, routineTime: 'pm', category: currentStep.category });
+    const newProd: RoutineProduct = { product: data, stepCategory: currentStep.category, time: 'pm' };
+    if (buildingVariation) {
+      setVariationProducts((prev) => [...prev, newProd]);
+    } else {
+      setProducts((prev) => [...prev, newProd]);
+    }
+    setAddingProduct(false);
+  };
+
+  const goNextStep = () => {
+    setAddingProduct(false);
+    if (buildingVariation) {
+      if (variationStepIndex < allSteps.length - 1) {
+        setVariationStepIndex(variationStepIndex + 1);
+      } else {
+        // Finish this variation
+        setDayVariations((prev) => [...prev, { name: newDayName, products: variationProducts }]);
+        setBuildingVariation(false);
+        setVariationProducts([]);
+        setVariationStepIndex(0);
+        setNewDayName('');
+        setAskingVariation(true);
+      }
+    } else {
+      if (stepIndex < allSteps.length - 1) {
+        setStepIndex(stepIndex + 1);
+      } else {
+        setDone(true);
+        setAskingVariation(true);
+      }
+    }
+  };
+
+  const goPrevStep = () => {
+    setAddingProduct(false);
+    if (buildingVariation) {
+      if (variationStepIndex > 0) setVariationStepIndex(variationStepIndex - 1);
+      else { setBuildingVariation(false); setAskingVariation(true); }
+    } else {
+      if (stepIndex > 0) setStepIndex(stepIndex - 1);
+      else onBack();
+    }
+  };
+
+  const handleAddCustomStep = () => {
+    if (!customStepName.trim()) return;
+    const newStep: RoutineStepDef = {
+      category: customStepName.toLowerCase().replace(/\s+/g, '_') as ProductCategory,
+      labelKey: customStepName,
+      descriptionKey: '',
+      time: 'pm',
+    };
+    setCustomSteps((prev) => [...prev, newStep]);
+    setAddingCustom(false);
+    setCustomStepName('');
+    if (buildingVariation) {
+      setVariationStepIndex(allSteps.length);
+    } else {
+      setStepIndex(allSteps.length);
+    }
+  };
+
+  const startNewDayVariation = () => {
+    setAddingNewDay(true);
+  };
+
+  const confirmNewDay = () => {
+    if (!newDayName.trim()) return;
+    setBuildingVariation(true);
+    setAddingNewDay(false);
+    setAskingVariation(false);
+    setVariationStepIndex(0);
+    setVariationProducts([]);
+  };
+
+  // Ask about day variations
+  if (askingVariation && !buildingVariation) {
+    const pmCount = products.filter((p) => p.time === 'pm').length;
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-stone-800">{t('onboard.pm.done')}</h2>
+          <p className="text-sm text-stone-500 mt-1">{pmCount} {t('common.evening').toLowerCase()}</p>
+          {dayVariations.length > 0 && (
+            <p className="text-xs text-emerald-500 mt-2">+ {dayVariations.length} day variation(s)</p>
+          )}
+        </div>
+
+        {/* Another day variation */}
+        <Card className="border-indigo-100">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm font-medium text-stone-700">{t('onboard.pm.anotherDay')}</p>
+            <p className="text-xs text-stone-400 mt-1">{t('onboard.pm.anotherDayHint')}</p>
+
+            {addingNewDay ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium text-stone-600">{t('onboard.pm.dayName')}</p>
+                <input
+                  type="text"
+                  value={newDayName}
+                  onChange={(e) => setNewDayName(e.target.value)}
+                  placeholder={t('onboard.pm.dayNamePlaceholder')}
+                  className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => { setAddingNewDay(false); setNewDayName(''); }}>{t('common.cancel')}</Button>
+                  <Button size="sm" onClick={confirmNewDay} disabled={!newDayName.trim()} className="bg-indigo-500 hover:bg-indigo-600 text-white">{t('common.continue')}</Button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={startNewDayVariation} className="mt-3 flex items-center gap-2 text-sm text-indigo-500 hover:text-indigo-600">
+                <Plus className="w-4 h-4" /> {t('onboard.pm.addDay')}
+              </button>
+            )}
+          </CardContent>
+        </Card>
+
+        <Button onClick={() => onNext(dayVariations)} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+          {t('common.continue')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
+        </Button>
+      </div>
+    );
+  }
+
+  // Building steps (main evening or variation)
+  const phaseTitle = buildingVariation ? newDayName : t('onboard.pm.title');
+  const idx = buildingVariation ? variationStepIndex : stepIndex;
+
+  return (
+    <div className="space-y-5">
+      {/* Phase header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Moon className="w-4 h-4 text-indigo-500" />
+          <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+            {phaseTitle}
+          </span>
+        </div>
+        <div className="flex gap-0.5">
+          {allSteps.map((_, i) => (
+            <div key={i} className={`w-4 h-1.5 rounded-full ${
+              i < idx ? 'bg-indigo-300' : i === idx ? 'bg-indigo-500' : 'bg-stone-200'
+            }`} />
+          ))}
+        </div>
+      </div>
+      <p className="text-xs text-stone-400">{t('onboard.pm.subtitle')}</p>
+
+      {/* Current step */}
+      {currentStep && (
+        <Card className="border-indigo-100">
+          <CardContent className="pt-5 pb-4">
+            <p className="text-xs text-indigo-500 font-semibold mb-1">
+              Step {idx + 1}/{allSteps.length}
+            </p>
+            <h3 className="text-lg font-semibold text-stone-800">{t(currentStep.labelKey)}</h3>
+            <p className="text-sm text-stone-600 mt-1 mb-1">
+              {t('onboard.step.doYouUse', { step: t(currentStep.labelKey).toLowerCase(), time: t('common.evening').toLowerCase() })}
+            </p>
+            {currentStep.descriptionKey && (
+              <p className="text-xs text-stone-400 mb-4">{t(currentStep.descriptionKey)}</p>
+            )}
+
+            {/* Products already added */}
+            {productsForCurrentStep.length > 0 && (
+              <div className="space-y-2 mb-4">
+                {productsForCurrentStep.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2 py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-stone-700 truncate">{p.product.name}</p>
+                      <p className="text-xs text-stone-400">{p.product.brand}</p>
+                    </div>
+                  </div>
+                ))}
+                {!addingProduct && (
+                  <button onClick={() => setAddingProduct(true)}
+                    className="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 mt-1">
+                    <Plus className="w-3 h-3" /> {t('onboard.step.addAnother')}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Add product UI */}
+            {(productsForCurrentStep.length === 0 || addingProduct) && (
+              <InlineProductAdder category={currentStep.category} onAdd={addProductToStep} />
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add custom step */}
+      {!addingCustom ? (
+        <button onClick={() => setAddingCustom(true)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-stone-200 hover:bg-stone-50 transition-colors">
+          <Plus className="w-4 h-4 text-stone-400" />
+          <span className="text-xs font-medium text-stone-500">{t('onboard.step.addCustomStep')}</span>
+        </button>
+      ) : (
+        <Card className="border-stone-200">
+          <CardContent className="pt-4 pb-3 space-y-3">
+            <p className="text-sm font-medium text-stone-700">{t('onboard.step.customStepName')}</p>
+            <input
+              type="text"
+              value={customStepName}
+              onChange={(e) => setCustomStepName(e.target.value)}
+              placeholder={t('onboard.step.customStepPlaceholder')}
+              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm"
+            />
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => { setAddingCustom(false); setCustomStepName(''); }}>{t('common.cancel')}</Button>
+              <Button size="sm" onClick={handleAddCustomStep} disabled={!customStepName.trim()} className="bg-rose-500 hover:bg-rose-600 text-white">{t('common.save')}</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Navigation */}
+      <div className="flex gap-3">
+        <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
+          <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
+        </Button>
+        <Button onClick={goNextStep} className={`flex-1 h-11 rounded-xl text-white ${
+          productsForCurrentStep.length > 0
+            ? 'bg-rose-500 hover:bg-rose-600'
+            : 'bg-stone-300 hover:bg-stone-400'
+        }`}>
+          {productsForCurrentStep.length > 0 ? (
+            <>{t('onboard.step.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></>
+          ) : (
+            <><SkipForward className="w-4 h-4 me-1" /> {t('onboard.step.dontUse')}</>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============ Step 4: Other Products You Own ============
+function StepOtherProducts({
+  userId,
+  onNext,
+  onBack,
+}: {
+  userId: string;
+  onNext: (count: number) => void;
+  onBack: () => void;
+}) {
+  const { t } = useLocale();
+  const [otherProducts, setOtherProducts] = useState<Array<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>>([]);
+  const [mode, setMode] = useState<'menu' | 'single' | 'batch' | 'manual' | 'batchResults'>('menu');
+  const [loading, setLoading] = useState(false);
+  const [batchResults, setBatchResults] = useState<ExtractedProduct[]>([]);
+  const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const addOtherProduct = async (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    await storeAddProduct(userId, { ...data, isActive: false });
+    setOtherProducts((prev) => [...prev, data]);
+    setMode('menu');
+  };
+
+  const handleBatchFile = async (file: File) => {
+    setLoading(true);
+    setError('');
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const res = await fetch('/api/extract-products-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: reader.result }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to extract');
+        setBatchResults(data.products || []);
+        setMode('batchResults');
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to extract');
+        setMode('menu');
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveAllBatch = async () => {
+    for (const p of batchResults) {
+      const prodData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'> = {
+        name: p.name,
+        brand: p.brand || '',
+        category: (p.category as ProductCategory) || 'serum',
+        routineTime: 'both',
+        isActive: false,
+        status: 'have',
+        description: p.description || '',
+        frequency: '',
+        notes: '',
+      };
+      await storeAddProduct(userId, prodData);
+      setOtherProducts((prev) => [...prev, prodData]);
+    }
+    setBatchResults([]);
+    setMode('menu');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-3">
+        <Loader2 className="w-8 h-8 text-rose-400 animate-spin" />
+        <span className="text-sm text-stone-500">{t('common.analyzing')}</span>
+      </div>
+    );
+  }
+
+  if (mode === 'batchResults') {
+    return (
+      <div className="space-y-5">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-stone-800">{t('add.foundProducts', { n: batchResults.length })}</h2>
+        </div>
+        <div className="space-y-2">
+          {batchResults.map((p, i) => (
+            <div key={i} className="flex items-center gap-2 py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-700 truncate">{p.name}</p>
+                <p className="text-xs text-stone-400">{p.brand}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <Button onClick={saveAllBatch} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+          {t('add.saveAll', { n: batchResults.length })}
+        </Button>
+        <Button variant="ghost" onClick={() => { setBatchResults([]); setMode('menu'); }} className="w-full text-stone-400">
+          {t('common.back')}
+        </Button>
+      </div>
+    );
+  }
+
+  if (mode === 'single') {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" className="text-xs text-stone-400 p-0 h-auto" onClick={() => setMode('menu')}>&larr; {t('common.back')}</Button>
+        <InlineProductAdder category="serum" onAdd={addOtherProduct} />
+      </div>
+    );
+  }
+
+  if (mode === 'manual') {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" className="text-xs text-stone-400 p-0 h-auto" onClick={() => setMode('menu')}>&larr; {t('common.back')}</Button>
+        <ProductForm
+          hideStatus
+          initial={{ routineTime: 'both' }}
+          onSave={addOtherProduct}
+          onClose={() => setMode('menu')}
+        />
+      </div>
+    );
+  }
+
+  // Menu mode
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center mx-auto mb-4">
+          <Package className="w-7 h-7 text-stone-500" />
+        </div>
+        <h2 className="text-xl font-semibold text-stone-800">{t('onboard.other.title')}</h2>
+        <p className="text-sm text-stone-500 mt-1">{t('onboard.other.subtitle')}</p>
+        <p className="text-xs text-stone-400 mt-0.5">{t('onboard.other.hint')}</p>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
+          <p className="text-xs text-rose-600">{error}</p>
+          <Button variant="ghost" size="sm" className="text-xs text-rose-500 mt-1 p-0 h-auto" onClick={() => setError('')}>{t('common.tryAgain')}</Button>
+        </div>
+      )}
+
+      {/* Products added so far */}
+      {otherProducts.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-stone-500">{t('onboard.other.added', { n: otherProducts.length })}</p>
+          {otherProducts.map((p, i) => (
+            <div key={i} className="flex items-center gap-2 py-2 px-3 bg-stone-50 border border-stone-200 rounded-lg">
+              <Package className="w-4 h-4 text-stone-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-700 truncate">{p.name}</p>
+                <p className="text-xs text-stone-400">{p.brand}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <input ref={fileRef} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBatchFile(f); }} />
+
+      {/* Three options */}
+      <div className="space-y-3">
+        <button onClick={() => setMode('single')}
+          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-stone-100 hover:bg-stone-50 transition-colors text-start">
+          <Camera className="w-5 h-5 text-rose-400" />
+          <div>
+            <p className="text-sm font-medium text-stone-700">{t('onboard.other.scanOne')}</p>
+          </div>
+        </button>
+
+        <button onClick={() => fileRef.current?.click()}
+          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-stone-100 hover:bg-stone-50 transition-colors text-start">
+          <ImageIcon className="w-5 h-5 text-indigo-400" />
+          <div>
+            <p className="text-sm font-medium text-stone-700">{t('onboard.other.scanMultiple')}</p>
+            <p className="text-xs text-stone-400">{t('onboard.other.scanMultipleHint')}</p>
+          </div>
+        </button>
+
+        <button onClick={() => setMode('manual')}
+          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-stone-100 hover:bg-stone-50 transition-colors text-start">
+          <Plus className="w-5 h-5 text-stone-400" />
+          <div>
+            <p className="text-sm font-medium text-stone-700">{t('onboard.other.addManual')}</p>
+          </div>
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex gap-3">
+        <Button variant="ghost" onClick={onBack} className="text-stone-400">
+          <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
+        </Button>
+        <Button onClick={() => onNext(otherProducts.length)} className="flex-1 h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+          {t('common.continue')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============ Step 5: Face Photos ============
 function StepFacePhotos({
   userId,
   onNext,
@@ -745,7 +1142,7 @@ function StepFacePhotos({
   );
 }
 
-// ============ Step 3: Done ============
+// ============ Step 6: Done ============
 function StepDone({ productCount, onFinish }: { productCount: number; onFinish: () => void }) {
   const { t } = useLocale();
   return (
@@ -757,7 +1154,7 @@ function StepDone({ productCount, onFinish }: { productCount: number; onFinish: 
         <h2 className="text-2xl font-semibold text-stone-800">{t('onboard.done.title')}</h2>
         <p className="text-sm text-stone-500 mt-2">
           {productCount > 0
-            ? t('onboard.done.withProducts').replace('{n}', String(productCount))
+            ? t('onboard.done.withProducts', { n: productCount })
             : t('onboard.done.noProducts')}
         </p>
       </div>
@@ -769,60 +1166,99 @@ function StepDone({ productCount, onFinish }: { productCount: number; onFinish: 
 }
 
 // ============ Main Wizard ============
-interface RoutineProduct {
-  product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>;
-  stepCategory: ProductCategory;
-  time: 'am' | 'pm';
-}
-
 export default function OnboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [productCount, setProductCount] = useState(0);
+  const [products, setProducts] = useState<RoutineProduct[]>([]);
+  const [hasEvening, setHasEvening] = useState(false);
+  const [eveningVariations, setEveningVariations] = useState<EveningDayVariation[]>([]);
 
+  // Step 0 -> 1: Disclaimer done
   const handleDisclaimerDone = useCallback(async () => {
     if (!user) return;
     await saveDisclaimerAgreement(user.id);
     setStep(1);
   }, [user]);
 
-  const handleRoutineDone = useCallback(async (
-    products: RoutineProduct[],
-    hasAm: boolean,
-    hasPm: boolean,
-  ) => {
-    if (!user) return;
-    setProductCount(products.length);
-
-    // Build a single routine day with AM/PM product IDs
-    // Products were already saved to DB in the builder, fetch their IDs
-    const { fetchProducts } = await import('@/lib/store');
-    const savedProducts = await fetchProducts(user.id);
-
-    const amIds = savedProducts.filter((p) => p.routineTime === 'am' || p.routineTime === 'both').map((p) => p.id);
-    const pmIds = savedProducts.filter((p) => p.routineTime === 'pm' || p.routineTime === 'both').map((p) => p.id);
-
-    if (hasAm || hasPm) {
-      const day: RoutineDay = {
-        id: `rd_${Date.now()}`,
-        dayNumber: 1,
-        name: 'Daily Routine',
-        amProducts: hasAm ? amIds : [],
-        pmProducts: hasPm ? pmIds : [],
-      };
-      await updateRoutineDays(user.id, [day], 1);
-    }
-
-    setStep(2);
-  }, [user]);
-
-  const handleRoutineSkip = useCallback(() => {
+  // Step 1 -> 2: Goals done
+  const handleGoalsDone = useCallback(() => {
     setStep(2);
   }, []);
 
-  const handlePhotosDone = useCallback(() => setStep(3), []);
+  // Step 2 -> 3 or 4: Morning done
+  const handleMorningDone = useCallback((continueEvening: boolean) => {
+    if (continueEvening) {
+      setHasEvening(true);
+      setStep(3);
+    } else {
+      setStep(4); // Skip to other products
+    }
+  }, []);
 
+  // Step 3 -> 4: Evening done
+  const handleEveningDone = useCallback((dayVariations: EveningDayVariation[]) => {
+    setEveningVariations(dayVariations);
+    setStep(4);
+  }, []);
+
+  // Step 4 -> 5: Other products done, build routine days
+  const handleOtherProductsDone = useCallback(async (otherCount: number) => {
+    if (!user) return;
+    const totalCount = products.length + otherCount;
+    setProductCount(totalCount);
+
+    // Build routine days from collected products
+    const { fetchProducts } = await import('@/lib/store');
+    const savedProducts = await fetchProducts(user.id);
+
+    const amIds = savedProducts.filter((p) => p.routineTime === 'am' || p.routineTime === 'both').filter((p) => p.isActive !== false).map((p) => p.id);
+    const pmIds = savedProducts.filter((p) => p.routineTime === 'pm' || p.routineTime === 'both').filter((p) => p.isActive !== false).map((p) => p.id);
+
+    const days: RoutineDay[] = [];
+
+    // Day 1: default daily routine
+    if (amIds.length > 0 || pmIds.length > 0) {
+      days.push({
+        id: `rd_${Date.now()}`,
+        dayNumber: 1,
+        name: 'Daily Routine',
+        amProducts: amIds,
+        pmProducts: pmIds,
+      });
+    }
+
+    // Additional day variations from evening builder
+    eveningVariations.forEach((variation, idx) => {
+      const variationPmIds = variation.products
+        .map((vp) => {
+          // Find matching saved product by name
+          const found = savedProducts.find((sp) => sp.name === vp.product.name && sp.routineTime === 'pm');
+          return found?.id;
+        })
+        .filter(Boolean) as string[];
+
+      days.push({
+        id: `rd_${Date.now()}_v${idx}`,
+        dayNumber: idx + 2,
+        name: variation.name,
+        amProducts: amIds, // Same morning routine
+        pmProducts: variationPmIds,
+      });
+    });
+
+    if (days.length > 0) {
+      await updateRoutineDays(user.id, days, days.length);
+    }
+
+    setStep(5);
+  }, [user, products, eveningVariations]);
+
+  // Step 5 -> 6: Photos done
+  const handlePhotosDone = useCallback(() => setStep(6), []);
+
+  // Step 6: Finish
   const handleFinish = useCallback(async () => {
     if (!user) return;
     await completeOnboarding(user.id);
@@ -832,6 +1268,9 @@ export default function OnboardPage() {
   if (!user) return null;
 
   const { t: tOnboard, locale, setLocale } = useLocale();
+
+  // Total steps: 0=Disclaimer, 1=Goals, 2=Morning, 3=Evening(optional), 4=OtherProducts, 5=Photos, 6=Done
+  const totalDots = 7;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white">
@@ -851,12 +1290,15 @@ export default function OnboardPage() {
       </div>
 
       <div className="max-w-lg mx-auto px-5 pt-12 pb-8">
-        <ProgressDots current={step} total={4} />
+        <ProgressDots current={step} total={totalDots} />
 
         {step === 0 && <StepDisclaimer onNext={handleDisclaimerDone} />}
-        {step === 1 && <StepRoutineBuilder userId={user.id} onNext={handleRoutineDone} onSkip={handleRoutineSkip} onBack={() => setStep(0)} />}
-        {step === 2 && <StepFacePhotos userId={user.id} onNext={handlePhotosDone} onBack={() => setStep(1)} />}
-        {step === 3 && <StepDone productCount={productCount} onFinish={handleFinish} />}
+        {step === 1 && <StepGoalsConcerns userId={user.id} onNext={handleGoalsDone} onBack={() => setStep(0)} />}
+        {step === 2 && <StepMorningRoutine userId={user.id} onNext={handleMorningDone} onBack={() => setStep(1)} products={products} setProducts={setProducts} />}
+        {step === 3 && <StepEveningRoutine userId={user.id} onNext={handleEveningDone} onBack={() => setStep(2)} products={products} setProducts={setProducts} />}
+        {step === 4 && <StepOtherProducts userId={user.id} onNext={handleOtherProductsDone} onBack={() => setStep(hasEvening ? 3 : 2)} />}
+        {step === 5 && <StepFacePhotos userId={user.id} onNext={handlePhotosDone} onBack={() => setStep(4)} />}
+        {step === 6 && <StepDone productCount={productCount} onFinish={handleFinish} />}
       </div>
     </div>
   );

@@ -141,3 +141,24 @@ export interface FacePhoto {
   publicUrl: string;
   uploadedAt: string;
 }
+
+export type SkinGoal =
+  | 'anti_aging'
+  | 'hydration'
+  | 'acne_control'
+  | 'even_tone'
+  | 'glow'
+  | 'pore_minimizing'
+  | 'reduce_redness'
+  | 'sun_protection';
+
+export type SkinConcern =
+  | 'dryness'
+  | 'oily_skin'
+  | 'acne'
+  | 'dark_spots'
+  | 'wrinkles'
+  | 'redness'
+  | 'dull_skin'
+  | 'large_pores'
+  | 'sensitivity';

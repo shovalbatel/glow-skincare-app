@@ -212,6 +212,19 @@ export async function saveDisclaimerAgreement(userId: string): Promise<void> {
   });
 }
 
+export async function saveSkinProfile(
+  userId: string,
+  goals: string[],
+  concerns: string[]
+): Promise<void> {
+  const supabase = createClient();
+  await supabase.from('user_settings').upsert({
+    user_id: userId,
+    skin_goals: goals,
+    skin_concerns: concerns,
+  });
+}
+
 export async function completeOnboarding(userId: string): Promise<void> {
   const supabase = createClient();
   await supabase.from('user_settings').upsert({

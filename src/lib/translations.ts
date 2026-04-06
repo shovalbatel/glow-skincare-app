@@ -198,17 +198,55 @@ const en = {
   'onboard.disclaimer.checkbox': 'I understand that all AI recommendations are informational only and I will consult a professional before making skincare decisions',
   'onboard.disclaimer.agree': 'I Agree & Continue',
 
-  // Onboarding - Routine Builder
-  'onboard.routine.title': 'Build your routine',
-  'onboard.routine.subtitle': "We'll walk through each step and add your products",
-  'onboard.routine.morningSteps': '{n} steps: cleanser to sunscreen',
-  'onboard.routine.eveningSteps': '{n} steps: cleanser to night cream',
-  'onboard.routine.start': 'Start Building',
-  'onboard.routine.noRoutine': "I don't have a routine yet — skip and get AI recommendations later",
-  'onboard.routine.nextStep': 'Next Step',
-  'onboard.routine.dontUse': "I don't use this",
-  'onboard.routine.addAlt': 'Add alternative product',
-  'onboard.routine.step': 'Step {n}/{total}',
+  // Onboarding - Skin Goals & Concerns
+  'onboard.goals.title': 'Your skincare goals',
+  'onboard.goals.subtitle': 'What do you want from your skincare routine?',
+  'onboard.goals.anti_aging': 'Anti-aging',
+  'onboard.goals.hydration': 'Hydration',
+  'onboard.goals.acne_control': 'Acne control',
+  'onboard.goals.even_tone': 'Even skin tone',
+  'onboard.goals.glow': 'Glow',
+  'onboard.goals.pore_minimizing': 'Pore minimizing',
+  'onboard.goals.reduce_redness': 'Reduce redness',
+  'onboard.goals.sun_protection': 'Sun protection',
+  'onboard.concerns.title': "What's currently bothering you?",
+  'onboard.concerns.dryness': 'Dryness',
+  'onboard.concerns.oily_skin': 'Oily skin',
+  'onboard.concerns.acne': 'Acne / Breakouts',
+  'onboard.concerns.dark_spots': 'Dark spots',
+  'onboard.concerns.wrinkles': 'Wrinkles',
+  'onboard.concerns.redness': 'Redness',
+  'onboard.concerns.dull_skin': 'Dull skin',
+  'onboard.concerns.large_pores': 'Large pores',
+  'onboard.concerns.sensitivity': 'Sensitivity',
+
+  // Onboarding - Morning Routine Builder
+  'onboard.am.title': "Let's build your morning routine",
+  'onboard.am.subtitle': "We'll go step by step — add the products you use",
+  'onboard.am.done': 'Morning routine set!',
+  'onboard.am.continueEvening': 'Continue to evening routine',
+  'onboard.am.skipEvening': 'Skip evening for now',
+
+  // Onboarding - Evening Routine Builder
+  'onboard.pm.title': "Now your evening routine",
+  'onboard.pm.subtitle': "Same idea — step by step with your evening products",
+  'onboard.pm.done': 'Evening routine set!',
+  'onboard.pm.anotherDay': 'I have different routines on different days',
+  'onboard.pm.anotherDayHint': 'Some people rotate treatments — retinol one night, acids the next',
+  'onboard.pm.addDay': 'Add another day',
+  'onboard.pm.dayName': 'Name this routine day',
+  'onboard.pm.dayNamePlaceholder': 'e.g., Retinol Night',
+
+  // Onboarding - Routine step UI
+  'onboard.step.doYouUse': 'Do you use a {step} in the {time}?',
+  'onboard.step.photoHint': 'Take a photo of this product',
+  'onboard.step.addProduct': 'Add product',
+  'onboard.step.addAnother': 'Add another product for this step',
+  'onboard.step.addCustomStep': 'Add a custom step',
+  'onboard.step.customStepName': 'Step name',
+  'onboard.step.customStepPlaceholder': 'e.g., Lip balm, Face mist',
+  'onboard.step.dontUse': "I don't use this",
+  'onboard.step.nextStep': 'Next step',
 
   // Onboarding - Step descriptions
   'onboard.step.cleanser.am': 'Wash away overnight buildup',
@@ -226,23 +264,21 @@ const en = {
   'onboard.step.oil.pm': 'Deep nourishment overnight',
   'onboard.step.night_cream.pm': 'Rich overnight repair',
 
-  // Onboarding - Specials
-  'onboard.specials.title': 'Special treatments',
-  'onboard.specials.subtitle': 'Products you use weekly or less often',
-  'onboard.specials.hint': 'Peeling masks, chemical exfoliants, face masks, etc.',
-  'onboard.specials.add': 'Add a treatment',
+  // Onboarding - Other Products
+  'onboard.other.title': 'Other products you own',
+  'onboard.other.subtitle': "Products that aren't in your daily routine",
+  'onboard.other.hint': "We can help you figure out how to use them",
+  'onboard.other.scanOne': 'Scan a product',
+  'onboard.other.scanMultiple': 'Scan multiple products',
+  'onboard.other.scanMultipleHint': 'Take one photo of all your products together',
+  'onboard.other.addManual': 'Add manually',
+  'onboard.other.added': '{n} product(s) added',
 
-  // Onboarding - Extras
-  'onboard.extras.title': 'Other products',
-  'onboard.extras.subtitle': "Products you own but aren't using right now",
-  'onboard.extras.hint': "Backups, products you're testing, or ones you paused",
-  'onboard.extras.add': 'Add a product',
-
-  // Onboarding - Summary
-  'onboard.summary.title': 'Looking great!',
-  'onboard.summary.products': '{n} product(s) added',
-  'onboard.summary.specials': 'Special Treatments',
-  'onboard.summary.extras': 'Other Products',
+  // Batch scan
+  'add.scanMultiple': 'Scan multiple products',
+  'add.scanMultipleHint': 'One photo of multiple products together',
+  'add.foundProducts': 'Found {n} product(s)',
+  'add.saveAll': 'Save All {n} Products',
 
   // Onboarding - Photos
   'onboard.photos.title': 'Your skin profile',
@@ -462,17 +498,55 @@ const he: Record<string, string> = {
   'onboard.disclaimer.checkbox': 'אני מבין/ה שכל המלצות ה-AI הן למידע בלבד ואתייעץ עם איש מקצוע לפני קבלת החלטות טיפוח',
   'onboard.disclaimer.agree': 'מסכים/ה והמשך',
 
-  // Onboarding - Routine Builder
-  'onboard.routine.title': 'בניית השגרה שלך',
-  'onboard.routine.subtitle': 'נעבור יחד על כל שלב ונוסיף את המוצרים שלך',
-  'onboard.routine.morningSteps': '{n} שלבים: מניקוי ועד הגנה מהשמש',
-  'onboard.routine.eveningSteps': '{n} שלבים: מניקוי ועד קרם לילה',
-  'onboard.routine.start': 'בואו נתחיל',
-  'onboard.routine.noRoutine': 'אין לי שגרה עדיין — דלג/י וקבל/י המלצות AI בהמשך',
-  'onboard.routine.nextStep': 'שלב הבא',
-  'onboard.routine.dontUse': 'לא משתמש/ת בזה',
-  'onboard.routine.addAlt': 'הוספת מוצר חלופי',
-  'onboard.routine.step': 'שלב {n}/{total}',
+  // Onboarding - Skin Goals & Concerns
+  'onboard.goals.title': 'מטרות הטיפוח שלך',
+  'onboard.goals.subtitle': 'מה את/ה רוצה מהשגרת טיפוח?',
+  'onboard.goals.anti_aging': 'אנטי אייג\'ינג',
+  'onboard.goals.hydration': 'לחות',
+  'onboard.goals.acne_control': 'טיפול באקנה',
+  'onboard.goals.even_tone': 'גוון עור אחיד',
+  'onboard.goals.glow': 'זוהר',
+  'onboard.goals.pore_minimizing': 'צמצום נקבוביות',
+  'onboard.goals.reduce_redness': 'הפחתת אדמומיות',
+  'onboard.goals.sun_protection': 'הגנה מהשמש',
+  'onboard.concerns.title': 'מה מפריע לך כרגע?',
+  'onboard.concerns.dryness': 'יובש',
+  'onboard.concerns.oily_skin': 'עור שמנוני',
+  'onboard.concerns.acne': 'אקנה / פריחות',
+  'onboard.concerns.dark_spots': 'כתמים כהים',
+  'onboard.concerns.wrinkles': 'קמטים',
+  'onboard.concerns.redness': 'אדמומיות',
+  'onboard.concerns.dull_skin': 'עור עמום',
+  'onboard.concerns.large_pores': 'נקבוביות רחבות',
+  'onboard.concerns.sensitivity': 'רגישות',
+
+  // Onboarding - Morning Routine Builder
+  'onboard.am.title': 'בואו נבנה את שגרת הבוקר',
+  'onboard.am.subtitle': 'נעבור שלב אחר שלב — הוסיפ/י את המוצרים שלך',
+  'onboard.am.done': 'שגרת הבוקר מוכנה!',
+  'onboard.am.continueEvening': 'המשך לשגרת ערב',
+  'onboard.am.skipEvening': 'דלג/י על ערב כרגע',
+
+  // Onboarding - Evening Routine Builder
+  'onboard.pm.title': 'עכשיו שגרת הערב',
+  'onboard.pm.subtitle': 'אותו רעיון — שלב אחר שלב עם מוצרי הערב',
+  'onboard.pm.done': 'שגרת הערב מוכנה!',
+  'onboard.pm.anotherDay': 'יש לי שגרות שונות בימים שונים',
+  'onboard.pm.anotherDayHint': 'חלק מהאנשים מחליפים טיפולים — רטינול לילה אחד, חומצות בלילה הבא',
+  'onboard.pm.addDay': 'הוספת יום נוסף',
+  'onboard.pm.dayName': 'שם ליום השגרה',
+  'onboard.pm.dayNamePlaceholder': 'למשל: ליל רטינול',
+
+  // Onboarding - Routine step UI
+  'onboard.step.doYouUse': 'את/ה משתמש/ת ב-{step} ב{time}?',
+  'onboard.step.photoHint': 'צלם/י תמונה של המוצר הזה',
+  'onboard.step.addProduct': 'הוספת מוצר',
+  'onboard.step.addAnother': 'הוספת מוצר נוסף לשלב זה',
+  'onboard.step.addCustomStep': 'הוספת שלב מותאם אישית',
+  'onboard.step.customStepName': 'שם השלב',
+  'onboard.step.customStepPlaceholder': 'למשל: שפתון לחות, ספריי פנים',
+  'onboard.step.dontUse': 'לא משתמש/ת בזה',
+  'onboard.step.nextStep': 'שלב הבא',
 
   // Onboarding - Step descriptions
   'onboard.step.cleanser.am': 'ניקוי שאריות הלילה',
@@ -490,23 +564,21 @@ const he: Record<string, string> = {
   'onboard.step.oil.pm': 'הזנה עמוקה ללילה',
   'onboard.step.night_cream.pm': 'שיקום לילי עשיר',
 
-  // Onboarding - Specials
-  'onboard.specials.title': 'טיפולים מיוחדים',
-  'onboard.specials.subtitle': 'מוצרים שמשתמשים בהם פעם בשבוע או פחות',
-  'onboard.specials.hint': 'מסכות פילינג, פילינגים כימיים, מסכות פנים וכו\'',
-  'onboard.specials.add': 'הוספת טיפול',
+  // Onboarding - Other Products
+  'onboard.other.title': 'מוצרים נוספים שיש לך',
+  'onboard.other.subtitle': 'מוצרים שלא בשגרה היומית',
+  'onboard.other.hint': 'נוכל לעזור לך להבין איך להשתמש בהם',
+  'onboard.other.scanOne': 'סריקת מוצר',
+  'onboard.other.scanMultiple': 'סריקת מספר מוצרים',
+  'onboard.other.scanMultipleHint': 'תמונה אחת של כל המוצרים יחד',
+  'onboard.other.addManual': 'הוספה ידנית',
+  'onboard.other.added': '{n} מוצרים נוספו',
 
-  // Onboarding - Extras
-  'onboard.extras.title': 'מוצרים נוספים',
-  'onboard.extras.subtitle': 'מוצרים שיש לך אבל לא בשימוש כרגע',
-  'onboard.extras.hint': 'מוצרי גיבוי, מוצרים בבדיקה, או כאלה שהושהו',
-  'onboard.extras.add': 'הוספת מוצר',
-
-  // Onboarding - Summary
-  'onboard.summary.title': 'נראה מעולה!',
-  'onboard.summary.products': '{n} מוצרים נוספו',
-  'onboard.summary.specials': 'טיפולים מיוחדים',
-  'onboard.summary.extras': 'מוצרים נוספים',
+  // Batch scan
+  'add.scanMultiple': 'סריקת מספר מוצרים',
+  'add.scanMultipleHint': 'תמונה אחת של מספר מוצרים יחד',
+  'add.foundProducts': 'נמצאו {n} מוצרים',
+  'add.saveAll': 'שמירת {n} מוצרים',
 
   // Onboarding - Photos
   'onboard.photos.title': 'פרופיל העור שלך',

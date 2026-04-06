@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
-  Camera, Link2, FileText, Loader2, Sparkles, ImageIcon,
+  Camera, Link2, FileText, Loader2, Sparkles, ImageIcon, X,
 } from 'lucide-react';
 import {
   Product,
@@ -145,7 +145,7 @@ export function ProductForm({
   );
 }
 
-type AddMode = 'choose' | 'photo' | 'link' | 'manual' | 'review';
+type AddMode = 'choose' | 'photo' | 'batch' | 'batchReview' | 'link' | 'manual' | 'review';
 
 export function SmartAddSheet({
   open,
@@ -161,15 +161,18 @@ export function SmartAddSheet({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [extracted, setExtracted] = useState<ExtractedProduct | null>(null);
+  const [batchExtracted, setBatchExtracted] = useState<ExtractedProduct[]>([]);
   const [url, setUrl] = useState('');
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const batchFileRef = useRef<HTMLInputElement>(null);
 
   const reset = useCallback(() => {
     setMode('choose');
     setLoading(false);
     setError('');
     setExtracted(null);
+    setBatchExtracted([]);
     setUrl('');
     setPreviewSrc(null);
   }, []);
@@ -200,6 +203,32 @@ export function SmartAddSheet({
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to extract product details');
         setMode('photo');
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleBatchFile = async (file: File) => {
+    setLoading(true);
+    setError('');
+    setPreviewSrc(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const res = await fetch('/api/extract-products-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: reader.result }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Extraction failed');
+        setBatchExtracted(Array.isArray(data) ? data : [data]);
+        setMode('batchReview');
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to extract products');
+        setMode('batch');
       } finally {
         setLoading(false);
       }
@@ -271,6 +300,11 @@ export function SmartAddSheet({
               <div><p className="text-sm font-semibold text-stone-700">{t('add.scanPhoto')}</p><p className="text-xs text-stone-400">{t('add.scanPhotoSub')}</p></div>
               <Sparkles className="w-4 h-4 text-rose-300 ms-auto" />
             </button>
+            <button onClick={() => setMode('batch')} className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left">
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center"><ImageIcon className="w-5 h-5 text-violet-500" /></div>
+              <div><p className="text-sm font-semibold text-stone-700">{t('add.scanMultiple')}</p><p className="text-xs text-stone-400">{t('add.scanMultipleHint')}</p></div>
+              <Sparkles className="w-4 h-4 text-violet-300 ms-auto" />
+            </button>
             <button onClick={() => setMode('link')} className="w-full flex items-center gap-4 p-4 rounded-xl border border-rose-100 hover:bg-rose-50 transition-colors text-left">
               <div className="w-11 h-11 rounded-full bg-gradient-to-br from-sky-100 to-blue-100 flex items-center justify-center"><Link2 className="w-5 h-5 text-sky-500" /></div>
               <div><p className="text-sm font-semibold text-stone-700">{t('add.pasteLink')}</p><p className="text-xs text-stone-400">{t('add.pasteLinkSub')}</p></div>
@@ -324,6 +358,53 @@ export function SmartAddSheet({
             {previewSrc && <img src={previewSrc} alt="Product" className="w-full h-32 object-cover rounded-xl mb-3" />}
             <ProductForm initial={extracted} onSave={(data) => { onSave(data); handleOpenChange(false); }} onClose={() => handleOpenChange(false)} />
           </>
+        )}
+
+        {mode === 'batch' && !loading && (
+          <div className="space-y-4 mt-2">
+            <input ref={batchFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBatchFile(f); }} />
+            <div className="text-center py-4">
+              <ImageIcon className="w-12 h-12 text-violet-300 mx-auto mb-3" />
+              <p className="text-sm text-stone-600 mb-1">{t('add.scanMultipleHint')}</p>
+              <p className="text-xs text-stone-400">AI will identify each product separately</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => { batchFileRef.current?.setAttribute('capture', 'environment'); batchFileRef.current?.click(); }}
+                className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-dashed border-violet-200 hover:bg-violet-50 transition-colors">
+                <Camera className="w-8 h-8 text-violet-400" /><span className="text-xs font-medium text-stone-600">{t('add.camera')}</span>
+              </button>
+              <button onClick={() => { batchFileRef.current?.removeAttribute('capture'); batchFileRef.current?.click(); }}
+                className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-dashed border-violet-200 hover:bg-violet-50 transition-colors">
+                <ImageIcon className="w-8 h-8 text-violet-400" /><span className="text-xs font-medium text-stone-600">{t('add.gallery')}</span>
+              </button>
+            </div>
+            <Button variant="ghost" className="w-full text-xs text-stone-400" onClick={() => setMode('choose')}>{t('common.back')}</Button>
+          </div>
+        )}
+
+        {mode === 'batchReview' && !loading && (
+          <div className="space-y-3 mt-2">
+            <div className="flex items-center gap-2 p-2 bg-violet-50 border border-violet-200 rounded-lg">
+              <Sparkles className="w-4 h-4 text-violet-500" />
+              <p className="text-xs text-violet-700">{t('add.foundProducts', { n: batchExtracted.length })}</p>
+            </div>
+            {batchExtracted.map((p, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 bg-white border border-rose-100 rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-stone-700 truncate">{p.name}</p>
+                  <p className="text-xs text-stone-400">{p.brand} &middot; {t('cat.' + p.category)}</p>
+                </div>
+                <button onClick={() => setBatchExtracted(batchExtracted.filter((_, j) => j !== i))} className="text-stone-300 hover:text-rose-500">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <Button onClick={() => { batchExtracted.forEach((p) => onSave({ ...p, status: 'have', isActive: true })); handleOpenChange(false); }}
+              className="w-full bg-violet-500 hover:bg-violet-600 text-white">
+              {t('add.saveAll', { n: batchExtracted.length })}
+            </Button>
+            <Button variant="ghost" className="w-full text-xs text-stone-400" onClick={() => { setBatchExtracted([]); setMode('choose'); }}>{t('common.cancel')}</Button>
+          </div>
         )}
       </SheetContent>
     </Sheet>
