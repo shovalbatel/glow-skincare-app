@@ -28,6 +28,7 @@ const ALL_CONDITIONS: SkinCondition[] = [
 export default function LogPage() {
   const { state, saveLog, addProduct } = useAppState();
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addSection, setAddSection] = useState<'am' | 'pm'>('am');
   const { t } = useLocale();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [amCompleted, setAmCompleted] = useState(false);
@@ -163,7 +164,7 @@ export default function LogPage() {
               ))}
             </div>
             <button
-              onClick={() => setIsAddOpen(true)}
+              onClick={() => { setAddSection('am'); setIsAddOpen(true); }}
               className="mt-2 text-xs text-rose-500 hover:text-rose-600 flex items-center gap-1"
             >
               ＋ {t('log.addProduct')}
@@ -205,7 +206,7 @@ export default function LogPage() {
               ))}
             </div>
             <button
-              onClick={() => setIsAddOpen(true)}
+              onClick={() => { setAddSection('pm'); setIsAddOpen(true); }}
               className="mt-2 text-xs text-rose-500 hover:text-rose-600 flex items-center gap-1"
             >
               ＋ {t('log.addProduct')}
@@ -303,8 +304,16 @@ export default function LogPage() {
       <SmartAddSheet
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        onSave={(product) => {
-          addProduct(product);
+        onSave={async (product) => {
+          const newId = await addProduct(product);
+          if (newId) {
+            if (addSection === 'am') {
+              setAmProducts((prev) => [...prev, newId]);
+            } else {
+              setPmProducts((prev) => [...prev, newId]);
+            }
+            setSaved(false);
+          }
           setIsAddOpen(false);
         }}
       />

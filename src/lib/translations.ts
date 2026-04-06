@@ -159,6 +159,10 @@ const en = {
   'routine.morningProducts': 'Morning Products',
   'routine.eveningProducts': 'Evening Products',
   'routine.saveChanges': 'Save Changes',
+  'routine.noRoutine': "You don't have a routine set up yet",
+  'routine.noRoutineHint': 'Create a routine to track your daily skincare steps',
+  'routine.createRoutine': 'Create a routine',
+  'routine.getRecommendations': 'Get AI recommendations',
 
   // Shopping
   'shop.title': 'Shopping',
@@ -249,6 +253,7 @@ const en = {
   'onboard.step.dontUse': "I don't use this",
   'onboard.step.addLater': "I use this step but I'll add the product later",
   'onboard.step.nextStep': 'Next step',
+  'onboard.step.removeProduct': 'Remove',
 
   // Onboarding - Step descriptions
   'onboard.step.cleanser.am': 'Wash away overnight buildup',
@@ -336,6 +341,9 @@ const en = {
   'profile.language': 'Language',
   'profile.appInfo': 'Glow — Skincare Tracker v1.0',
   'profile.disclaimer': 'AI recommendations are for informational purposes only',
+  'profile.back': 'Back',
+
+  'log.addedToLog': 'Product added to today\'s log',
 
   // Language
   'lang.choose': 'Choose language',
@@ -502,6 +510,10 @@ const he: Record<string, string> = {
   'routine.morningProducts': 'מוצרי בוקר',
   'routine.eveningProducts': 'מוצרי ערב',
   'routine.saveChanges': 'שמירת שינויים',
+  'routine.noRoutine': 'עדיין לא הגדרת שגרה',
+  'routine.noRoutineHint': 'צור/י שגרה כדי לעקוב אחרי שלבי הטיפוח היומיים',
+  'routine.createRoutine': 'יצירת שגרה',
+  'routine.getRecommendations': 'קבלת המלצות AI',
 
   // Shopping
   'shop.title': 'קניות',
@@ -592,6 +604,7 @@ const he: Record<string, string> = {
   'onboard.step.dontUse': 'לא משתמש/ת בזה',
   'onboard.step.addLater': 'אני משתמש/ת בשלב הזה אבל אוסיף את המוצר אחר כך',
   'onboard.step.nextStep': 'שלב הבא',
+  'onboard.step.removeProduct': 'הסרה',
 
   // Onboarding - Step descriptions
   'onboard.step.cleanser.am': 'ניקוי שאריות הלילה',
@@ -679,6 +692,9 @@ const he: Record<string, string> = {
   'profile.language': 'שפה',
   'profile.appInfo': 'Glow — מעקב טיפוח v1.0',
   'profile.disclaimer': 'המלצות AI הן למטרות מידע בלבד',
+  'profile.back': 'חזרה',
+
+  'log.addedToLog': 'המוצר נוסף ליומן של היום',
 
   // Language
   'lang.choose': 'בחר/י שפה',

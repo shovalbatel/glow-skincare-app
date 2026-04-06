@@ -70,9 +70,9 @@ export async function loadState(): Promise<AppState> {
 export async function addProduct(
   userId: string,
   product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>
-): Promise<void> {
+): Promise<string | undefined> {
   const supabase = createClient();
-  await supabase.from('products').insert({
+  const { data } = await supabase.from('products').insert({
     user_id: userId,
     name: product.name,
     brand: product.brand,
@@ -83,7 +83,8 @@ export async function addProduct(
     status: product.status,
     is_active: product.isActive,
     notes: product.notes,
-  });
+  }).select('id').single();
+  return data?.id;
 }
 
 export async function updateProduct(

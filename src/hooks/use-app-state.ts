@@ -42,10 +42,11 @@ export function useAppState() {
   }, [user, refresh, pathname, router]);
 
   const doAddProduct = useCallback(
-    async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-      if (!user) return;
-      await storeAddProduct(user.id, product);
+    async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<string | undefined> => {
+      if (!user) return undefined;
+      const id = await storeAddProduct(user.id, product);
       await refresh();
+      return id;
     },
     [user, refresh]
   );

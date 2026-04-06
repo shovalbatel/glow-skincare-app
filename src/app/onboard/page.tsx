@@ -19,10 +19,11 @@ import {
 } from '@/lib/store';
 import { Product, ProductCategory, RoutineDay, SkinGoal, SkinConcern } from '@/lib/types';
 import {
-  Sparkles, Sun, Moon, Camera, Loader2, X,
+  Sparkles, Sun, Moon, Camera, Loader2, X, Link2,
   ChevronRight, ChevronLeft, UserCircle, ImageIcon, Package,
   Shield, CheckCircle2, Plus, SkipForward,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useLocale } from '@/components/locale-provider';
 import { Locale } from '@/lib/translations';
 
@@ -258,12 +259,34 @@ function InlineProductAdder({
   category: ProductCategory;
 }) {
   const { t } = useLocale();
-  const [mode, setMode] = useState<'choose' | 'photo' | 'manual' | 'review'>('choose');
+  const [mode, setMode] = useState<'choose' | 'photo' | 'link' | 'manual' | 'review'>('choose');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [extracted, setExtracted] = useState<ExtractedProduct | null>(null);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [url, setUrl] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUrl = async () => {
+    if (!url.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/extract-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Extraction failed');
+      setExtracted(data);
+      setMode('review');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to extract from URL');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFile = async (file: File) => {
     setLoading(true);
@@ -367,6 +390,21 @@ function InlineProductAdder({
     );
   }
 
+  if (mode === 'link') {
+    return (
+      <div className="space-y-3">
+        <button onClick={() => setMode('choose')} className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
+          <ChevronLeft className="w-3 h-3 rtl:rotate-180" /> {t('common.back')}
+        </button>
+        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t('add.urlPlaceholder')} type="url" />
+        <p className="text-xs text-stone-400">{t('add.urlHint')}</p>
+        <Button onClick={handleUrl} disabled={!url.trim()} className="w-full bg-sky-500 hover:bg-sky-600 text-white">
+          <Sparkles className="w-4 h-4 me-2" />{t('add.extract')}
+        </Button>
+      </div>
+    );
+  }
+
   // choose mode
   return (
     <div className="space-y-2">
@@ -375,6 +413,11 @@ function InlineProductAdder({
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-rose-200 hover:bg-rose-50 transition-colors">
           <Camera className="w-4 h-4 text-rose-400" />
           <span className="text-xs font-medium text-stone-600">{t('add.scanPhoto')}</span>
+        </button>
+        <button onClick={() => setMode('link')}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-sky-200 hover:bg-sky-50 transition-colors">
+          <Link2 className="w-4 h-4 text-sky-400" />
+          <span className="text-xs font-medium text-stone-600">{t('add.pasteLink')}</span>
         </button>
         <button onClick={() => setMode('manual')}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-stone-200 hover:bg-stone-50 transition-colors">
@@ -522,11 +565,19 @@ function StepMorningRoutine({
               <div className="space-y-2 mb-4">
                 {productsForCurrentStep.map((p, i) => (
                   <div key={i} className="flex items-center gap-2 py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-stone-700 truncate">{p.product.name}</p>
                       <p className="text-xs text-stone-400">{p.product.brand}</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setProducts((prev) => prev.filter((_, idx) => idx !== products.indexOf(p)))}
+                      className="shrink-0 p-1 rounded-full text-stone-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                      aria-label={t('onboard.step.removeProduct')}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 ))}
                 {!addingProduct && (
@@ -810,15 +861,27 @@ function StepEveningRoutine({
             {/* Products already added */}
             {productsForCurrentStep.length > 0 && (
               <div className="space-y-2 mb-4">
-                {productsForCurrentStep.map((p, i) => (
-                  <div key={i} className="flex items-center gap-2 py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-stone-700 truncate">{p.product.name}</p>
-                      <p className="text-xs text-stone-400">{p.product.brand}</p>
+                {productsForCurrentStep.map((p, i) => {
+                  const setterFn = buildingVariation ? setVariationProducts : setProducts;
+                  const sourceArr = buildingVariation ? variationProducts : products;
+                  return (
+                    <div key={i} className="flex items-center gap-2 py-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-700 truncate">{p.product.name}</p>
+                        <p className="text-xs text-stone-400">{p.product.brand}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setterFn((prev) => prev.filter((_, idx) => idx !== sourceArr.indexOf(p)))}
+                        className="shrink-0 p-1 rounded-full text-stone-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                        aria-label={t('onboard.step.removeProduct')}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {!addingProduct && (
                   <button onClick={() => setAddingProduct(true)}
                     className="flex items-center gap-1.5 text-xs text-rose-500 hover:text-rose-600 mt-1">
@@ -863,21 +926,28 @@ function StepEveningRoutine({
       )}
 
       {/* Navigation */}
-      <div className="flex gap-3">
-        <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
-          <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
-        </Button>
-        <Button onClick={goNextStep} className={`flex-1 h-11 rounded-xl text-white ${
-          productsForCurrentStep.length > 0
-            ? 'bg-rose-500 hover:bg-rose-600'
-            : 'bg-stone-300 hover:bg-stone-400'
-        }`}>
-          {productsForCurrentStep.length > 0 ? (
-            <>{t('onboard.step.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></>
-          ) : (
-            <><SkipForward className="w-4 h-4 me-1" /> {t('onboard.step.dontUse')}</>
-          )}
-        </Button>
+      <div className="space-y-2">
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
+            <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
+          </Button>
+          <Button onClick={goNextStep} className={`flex-1 h-11 rounded-xl text-white ${
+            productsForCurrentStep.length > 0
+              ? 'bg-rose-500 hover:bg-rose-600'
+              : 'bg-stone-300 hover:bg-stone-400'
+          }`}>
+            {productsForCurrentStep.length > 0 ? (
+              <>{t('onboard.step.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></>
+            ) : (
+              <><SkipForward className="w-4 h-4 me-1" /> {t('onboard.step.dontUse')}</>
+            )}
+          </Button>
+        </div>
+        {productsForCurrentStep.length === 0 && (
+          <button onClick={goNextStep} className="w-full text-center text-xs text-stone-400 hover:text-rose-500 transition-colors py-1">
+            {t('onboard.step.addLater')}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -920,7 +990,7 @@ function StepOtherProducts({
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to extract');
-        setBatchResults(data.products || []);
+        setBatchResults(Array.isArray(data) ? data : data.products || []);
         setMode('batchResults');
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to extract');
@@ -1296,7 +1366,7 @@ export default function OnboardPage() {
   const totalDots = 7;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white overflow-x-hidden" style={{ overscrollBehavior: 'contain' }}>
       {/* Language toggle */}
       <div className="fixed top-4 end-4 z-50 flex gap-1 bg-white rounded-full p-1 shadow-sm border border-rose-100">
         {(['en', 'he'] as Locale[]).map((l) => (

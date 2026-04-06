@@ -13,8 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Sun, Moon, Pencil, CheckCircle2, Circle } from 'lucide-react';
+import { Sun, Moon, Pencil, CheckCircle2, Circle, CalendarDays, Sparkles } from 'lucide-react';
 import { RoutineDay } from '@/lib/types';
+import Link from 'next/link';
 import { useLocale } from '@/components/locale-provider';
 import { SmartAddSheet } from '@/components/product-add-flow';
 
@@ -77,6 +78,39 @@ export default function RoutinePage() {
               <p className="text-xs text-stone-500 mt-1">
                 {t('routine.dayOf').replace('{n}', String(todayRoutine.dayNumber)).replace('{total}', String(state.cycleLength))}
               </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {state.routineDays.length === 0 && (
+        <div className="px-5 mb-5">
+          <Card className="border-rose-100 shadow-sm">
+            <CardContent className="pt-8 pb-6 flex flex-col items-center text-center">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center mb-4">
+                <CalendarDays className="w-7 h-7 text-rose-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-stone-700 mb-1">{t('routine.noRoutine')}</h3>
+              <p className="text-sm text-stone-400 mb-5">{t('routine.noRoutineHint')}</p>
+              <Button
+                onClick={() => {
+                  const newDay: RoutineDay = {
+                    id: `rd_${Date.now()}`,
+                    dayNumber: 1,
+                    name: 'Daily Routine',
+                    amProducts: amProducts.map((p) => p.id),
+                    pmProducts: pmProducts.map((p) => p.id),
+                  };
+                  updateRoutine([newDay], 1);
+                }}
+                className="w-full bg-rose-500 hover:bg-rose-600 text-white rounded-xl h-11 mb-3"
+              >
+                {t('routine.createRoutine')}
+              </Button>
+              <Link href="/recommendations" className="flex items-center gap-1.5 text-sm text-rose-500 hover:text-rose-600">
+                <Sparkles className="w-4 h-4" /> {t('routine.getRecommendations')}
+              </Link>
             </CardContent>
           </Card>
         </div>

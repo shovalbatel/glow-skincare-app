@@ -217,16 +217,20 @@ export function SmartAddSheet({
     const reader = new FileReader();
     reader.onload = async () => {
       try {
+        const base64 = reader.result as string;
         const res = await fetch('/api/extract-products-batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: reader.result }),
+          body: JSON.stringify({ image: base64 }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Extraction failed');
-        setBatchExtracted(Array.isArray(data) ? data : [data]);
+        const products = Array.isArray(data) ? data : data.products ? data.products : [data];
+        if (products.length === 0) throw new Error('No products detected in the image');
+        setBatchExtracted(products);
         setMode('batchReview');
       } catch (e: unknown) {
+        console.error('[BatchScan] Error:', e);
         setError(e instanceof Error ? e.message : 'Failed to extract products');
         setMode('batch');
       } finally {

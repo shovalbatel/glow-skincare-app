@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAuth } from '@/components/auth-provider';
@@ -16,7 +17,7 @@ import {
 import { SkinGoal, SkinConcern } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Camera } from 'lucide-react';
+import { Camera, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ALL_GOALS: SkinGoal[] = [
@@ -43,6 +44,7 @@ const ALL_CONCERNS: SkinConcern[] = [
 ];
 
 export default function ProfilePage() {
+  const router = useRouter();
   const { user, signOut } = useAuth();
   const { t, locale, setLocale } = useLocale();
 
@@ -123,6 +125,11 @@ export default function ProfilePage() {
 
   return (
     <AppShell>
+      <div className="px-5 pt-2 mb-1">
+        <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-stone-400 -ms-2">
+          <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('profile.back')}
+        </Button>
+      </div>
       <PageHeader title={t('profile.title')} />
 
       {/* Account Card */}
