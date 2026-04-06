@@ -328,7 +328,9 @@ function InlineProductAdder({
   if (mode === 'manual') {
     return (
       <div className="space-y-2">
-        <Button variant="ghost" className="text-xs text-stone-400 p-0 h-auto" onClick={() => setMode('choose')}>&larr; {t('common.back')}</Button>
+        <button onClick={() => setMode('choose')} className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
+          <ChevronLeft className="w-3 h-3 rtl:rotate-180" /> {t('common.back')}
+        </button>
         <ProductForm
           hideStatus
           initial={{ category, routineTime: 'both' }}
@@ -342,8 +344,11 @@ function InlineProductAdder({
   if (mode === 'photo') {
     return (
       <div className="space-y-3">
+        <button onClick={() => setMode('choose')} className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600">
+          <ChevronLeft className="w-3 h-3 rtl:rotate-180" /> {t('common.back')}
+        </button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-        <p className="text-xs text-stone-500 text-center">{t('onboard.step.photoHint')}</p>
+        <p className="text-xs text-rose-500 font-medium text-center">{t('onboard.step.photoHint')}</p>
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => { fileRef.current?.setAttribute('capture', 'environment'); fileRef.current?.click(); }}
             className="flex flex-col items-center gap-1.5 p-4 rounded-lg border-2 border-dashed border-rose-200 hover:bg-rose-50 transition-colors">
@@ -354,24 +359,25 @@ function InlineProductAdder({
             <ImageIcon className="w-6 h-6 text-rose-400" /><span className="text-[10px] font-medium text-stone-600">{t('add.gallery')}</span>
           </button>
         </div>
-        <Button variant="ghost" className="w-full text-xs text-stone-400" onClick={() => setMode('choose')}>{t('common.back')}</Button>
       </div>
     );
   }
 
   // choose mode
   return (
-    <div className="flex gap-2">
-      <button onClick={() => setMode('photo')}
-        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-rose-200 hover:bg-rose-50 transition-colors">
-        <Camera className="w-4 h-4 text-rose-400" />
-        <span className="text-xs font-medium text-stone-600">{t('onboard.step.addProduct')}</span>
-      </button>
-      <button onClick={() => setMode('manual')}
-        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-stone-200 hover:bg-stone-50 transition-colors">
-        <Plus className="w-4 h-4 text-stone-400" />
-        <span className="text-xs font-medium text-stone-600">{t('add.manual')}</span>
-      </button>
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <button onClick={() => setMode('photo')}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-rose-200 hover:bg-rose-50 transition-colors">
+          <Camera className="w-4 h-4 text-rose-400" />
+          <span className="text-xs font-medium text-stone-600">{t('add.scanPhoto')}</span>
+        </button>
+        <button onClick={() => setMode('manual')}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-stone-200 hover:bg-stone-50 transition-colors">
+          <Plus className="w-4 h-4 text-stone-400" />
+          <span className="text-xs font-medium text-stone-600">{t('add.manual')}</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -486,6 +492,9 @@ function StepMorningRoutine({
         </div>
       </div>
       <p className="text-xs text-stone-400">{t('onboard.am.subtitle')}</p>
+      <div className="p-2.5 bg-sky-50 border border-sky-200 rounded-lg">
+        <p className="text-xs text-sky-700">{t('onboard.am.currentHint')}</p>
+      </div>
 
       {/* Current step */}
       {currentStep && (
@@ -558,21 +567,24 @@ function StepMorningRoutine({
       )}
 
       {/* Navigation */}
-      <div className="flex gap-3">
-        <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
-          <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
-        </Button>
-        <Button onClick={goNextStep} className={`flex-1 h-11 rounded-xl text-white ${
-          productsForCurrentStep.length > 0
-            ? 'bg-rose-500 hover:bg-rose-600'
-            : 'bg-stone-300 hover:bg-stone-400'
-        }`}>
-          {productsForCurrentStep.length > 0 ? (
-            <>{t('onboard.step.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></>
-          ) : (
-            <><SkipForward className="w-4 h-4 me-1" /> {t('onboard.step.dontUse')}</>
-          )}
-        </Button>
+      <div className="space-y-2">
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
+            <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
+          </Button>
+          <Button onClick={goNextStep} className="flex-1 h-11 rounded-xl text-white bg-rose-500 hover:bg-rose-600">
+            {productsForCurrentStep.length > 0 ? (
+              <>{t('onboard.step.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></>
+            ) : (
+              <><SkipForward className="w-4 h-4 me-1" /> {t('onboard.step.dontUse')}</>
+            )}
+          </Button>
+        </div>
+        {productsForCurrentStep.length === 0 && (
+          <button onClick={goNextStep} className="w-full text-center text-xs text-stone-400 hover:text-rose-500 transition-colors py-1">
+            {t('onboard.step.addLater')}
+          </button>
+        )}
       </div>
     </div>
   );

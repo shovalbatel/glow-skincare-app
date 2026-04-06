@@ -222,7 +222,8 @@ const en = {
 
   // Onboarding - Morning Routine Builder
   'onboard.am.title': "Let's build your morning routine",
-  'onboard.am.subtitle': "We'll go step by step — add the products you use",
+  'onboard.am.subtitle': "We'll go step by step — add the products you currently use",
+  'onboard.am.currentHint': "Tell us what you're using today — after setup, we'll suggest improvements and new products for you",
   'onboard.am.done': 'Morning routine set!',
   'onboard.am.continueEvening': 'Continue to evening routine',
   'onboard.am.skipEvening': 'Skip evening for now',
@@ -246,6 +247,7 @@ const en = {
   'onboard.step.customStepName': 'Step name',
   'onboard.step.customStepPlaceholder': 'e.g., Lip balm, Face mist',
   'onboard.step.dontUse': "I don't use this",
+  'onboard.step.addLater': "I use this step but I'll add the product later",
   'onboard.step.nextStep': 'Next step',
 
   // Onboarding - Step descriptions
@@ -522,7 +524,8 @@ const he: Record<string, string> = {
 
   // Onboarding - Morning Routine Builder
   'onboard.am.title': 'בואו נבנה את שגרת הבוקר',
-  'onboard.am.subtitle': 'נעבור שלב אחר שלב — הוסיפ/י את המוצרים שלך',
+  'onboard.am.subtitle': 'נעבור שלב אחר שלב — הוסיפ/י את המוצרים שבהם את/ה משתמש/ת כרגע',
+  'onboard.am.currentHint': 'ספר/י לנו מה את/ה משתמש/ת היום — אחרי ההגדרה, נציע שיפורים ומוצרים חדשים',
   'onboard.am.done': 'שגרת הבוקר מוכנה!',
   'onboard.am.continueEvening': 'המשך לשגרת ערב',
   'onboard.am.skipEvening': 'דלג/י על ערב כרגע',
@@ -546,6 +549,7 @@ const he: Record<string, string> = {
   'onboard.step.customStepName': 'שם השלב',
   'onboard.step.customStepPlaceholder': 'למשל: שפתון לחות, ספריי פנים',
   'onboard.step.dontUse': 'לא משתמש/ת בזה',
+  'onboard.step.addLater': 'אני משתמש/ת בשלב הזה אבל אוסיף את המוצר אחר כך',
   'onboard.step.nextStep': 'שלב הבא',
 
   // Onboarding - Step descriptions
