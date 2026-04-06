@@ -191,3 +191,69 @@ export function getProductById(state: AppState, id: string): Product | undefined
 export function getLogByDate(state: AppState, date: string): DailyLog | undefined {
   return state.dailyLogs.find((l) => l.date === date);
 }
+
+// ---------- Onboarding operations ----------
+
+export async function checkOnboardingStatus(userId: string): Promise<boolean> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('user_settings')
+    .select('onboarding_completed')
+    .eq('user_id', userId)
+    .single();
+  return data?.onboarding_completed === true;
+}
+
+export async function saveDisclaimerAgreement(userId: string): Promise<void> {
+  const supabase = createClient();
+  await supabase.from('user_settings').upsert({
+    user_id: userId,
+    disclaimer_agreed_at: new Date().toISOString(),
+  });
+}
+
+export async function completeOnboarding(userId: string): Promise<void> {
+  const supabase = createClient();
+  await supabase.from('user_settings').upsert({
+    user_id: userId,
+    onboarding_completed: true,
+  });
+}
+
+export async function uploadFacePhoto(
+  userId: string,
+  file: File
+): Promise<{ storagePath: string; publicUrl: string }> {
+  const supabase = createClient();
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${userId}/${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage.from('face-photos').upload(path, file);
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('face-photos').getPublicUrl(path);
+  return { storagePath: path, publicUrl: data.publicUrl };
+}
+
+export async function saveFacePhotoRecord(
+  userId: string,
+  storagePath: string,
+  publicUrl: string
+): Promise<void> {
+  const supabase = createClient();
+  await supabase.from('face_photos').insert({
+    user_id: userId,
+    storage_path: storagePath,
+    public_url: publicUrl,
+  });
+}
+
+export async function fetchProducts(userId: string): Promise<Product[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('products')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at');
+  return (data || []).map(mapProduct);
+}

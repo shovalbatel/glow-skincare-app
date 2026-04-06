@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { AppState, Product, SkinCondition, SkinFeeling, RoutineDay } from '@/lib/types';
 import {
   loadState,
@@ -9,12 +10,14 @@ import {
   deleteProduct as storeDeleteProduct,
   addOrUpdateLog as storeAddOrUpdateLog,
   updateRoutineDays as storeUpdateRoutineDays,
+  checkOnboardingStatus,
 } from '@/lib/store';
 import { useAuth } from '@/components/auth-provider';
-import { seedUserData } from '@/lib/seed-data';
 
 export function useAppState() {
   const { user } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const [state, setState] = useState<AppState | null>(null);
 
   const refresh = useCallback(async () => {
@@ -23,15 +26,20 @@ export function useAppState() {
     setState(s);
   }, [user]);
 
-  // Load state when user is available
   useEffect(() => {
     if (!user) {
       setState(null);
       return;
     }
-    // Seed data for first-time users, then load
-    seedUserData(user.id).then(() => refresh());
-  }, [user, refresh]);
+
+    checkOnboardingStatus(user.id).then((completed) => {
+      if (!completed && pathname !== '/onboard') {
+        router.push('/onboard');
+        return;
+      }
+      refresh();
+    });
+  }, [user, refresh, pathname, router]);
 
   const doAddProduct = useCallback(
     async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {

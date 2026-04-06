@@ -134,3 +134,10 @@ export const ROUTINE_TIME_LABELS: Record<RoutineTime, string> = {
   pm: 'Evening',
   both: 'AM & PM',
 };
+
+export interface FacePhoto {
+  id: string;
+  storagePath: string;
+  publicUrl: string;
+  uploadedAt: string;
+}
