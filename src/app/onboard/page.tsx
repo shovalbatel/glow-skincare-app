@@ -425,8 +425,10 @@ function StepMorningRoutine({
     setAddingProduct(false);
     if (stepIndex < allSteps.length - 1) {
       setStepIndex(stepIndex + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setDone(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -502,7 +504,7 @@ function StepMorningRoutine({
 
       {/* Current step */}
       {currentStep && (
-        <Card className="border-amber-100">
+        <Card key={`am-step-${stepIndex}`} className="border-amber-100 animate-slide-in">
           <CardContent className="pt-5 pb-4">
             <p className="text-xs text-amber-500 font-semibold mb-1">
               Step {stepIndex + 1}/{allSteps.length}
@@ -650,11 +652,11 @@ function StepEveningRoutine({
 
   const goNextStep = () => {
     setAddingProduct(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     if (buildingVariation) {
       if (variationStepIndex < allSteps.length - 1) {
         setVariationStepIndex(variationStepIndex + 1);
       } else {
-        // Finish this variation
         setDayVariations((prev) => [...prev, { name: newDayName, products: variationProducts }]);
         setBuildingVariation(false);
         setVariationProducts([]);
@@ -792,7 +794,7 @@ function StepEveningRoutine({
 
       {/* Current step */}
       {currentStep && (
-        <Card className="border-indigo-100">
+        <Card key={`pm-step-${idx}`} className="border-indigo-100 animate-slide-in">
           <CardContent className="pt-5 pb-4">
             <p className="text-xs text-indigo-500 font-semibold mb-1">
               Step {idx + 1}/{allSteps.length}
@@ -1191,33 +1193,38 @@ export default function OnboardPage() {
   const [hasEvening, setHasEvening] = useState(false);
   const [eveningVariations, setEveningVariations] = useState<EveningDayVariation[]>([]);
 
+  const goToStep = useCallback((s: number) => {
+    setStep(s);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   // Step 0 -> 1: Disclaimer done
   const handleDisclaimerDone = useCallback(async () => {
     if (!user) return;
     await saveDisclaimerAgreement(user.id);
-    setStep(1);
-  }, [user]);
+    goToStep(1);
+  }, [user, goToStep]);
 
   // Step 1 -> 2: Goals done
   const handleGoalsDone = useCallback(() => {
-    setStep(2);
-  }, []);
+    goToStep(2);
+  }, [goToStep]);
 
   // Step 2 -> 3 or 4: Morning done
   const handleMorningDone = useCallback((continueEvening: boolean) => {
     if (continueEvening) {
       setHasEvening(true);
-      setStep(3);
+      goToStep(3);
     } else {
-      setStep(4); // Skip to other products
+      goToStep(4); // Skip to other products
     }
   }, []);
 
   // Step 3 -> 4: Evening done
   const handleEveningDone = useCallback((dayVariations: EveningDayVariation[]) => {
     setEveningVariations(dayVariations);
-    setStep(4);
-  }, []);
+    goToStep(4);
+  }, [goToStep]);
 
   // Step 4 -> 5: Other products done, build routine days
   const handleOtherProductsDone = useCallback(async (otherCount: number) => {
@@ -1268,11 +1275,11 @@ export default function OnboardPage() {
       await updateRoutineDays(user.id, days, days.length);
     }
 
-    setStep(5);
-  }, [user, products, eveningVariations]);
+    goToStep(5);
+  }, [user, products, eveningVariations, goToStep]);
 
   // Step 5 -> 6: Photos done
-  const handlePhotosDone = useCallback(() => setStep(6), []);
+  const handlePhotosDone = useCallback(() => goToStep(6), [goToStep]);
 
   // Step 6: Finish
   const handleFinish = useCallback(async () => {
@@ -1308,13 +1315,15 @@ export default function OnboardPage() {
       <div className="max-w-lg mx-auto px-5 pt-12 pb-8">
         <ProgressDots current={step} total={totalDots} />
 
-        {step === 0 && <StepDisclaimer onNext={handleDisclaimerDone} />}
-        {step === 1 && <StepGoalsConcerns userId={user.id} onNext={handleGoalsDone} onBack={() => setStep(0)} />}
-        {step === 2 && <StepMorningRoutine userId={user.id} onNext={handleMorningDone} onBack={() => setStep(1)} products={products} setProducts={setProducts} />}
-        {step === 3 && <StepEveningRoutine userId={user.id} onNext={handleEveningDone} onBack={() => setStep(2)} products={products} setProducts={setProducts} />}
-        {step === 4 && <StepOtherProducts userId={user.id} onNext={handleOtherProductsDone} onBack={() => setStep(hasEvening ? 3 : 2)} />}
-        {step === 5 && <StepFacePhotos userId={user.id} onNext={handlePhotosDone} onBack={() => setStep(4)} />}
-        {step === 6 && <StepDone productCount={productCount} onFinish={handleFinish} />}
+        <div key={`wizard-step-${step}`} className="animate-slide-in">
+          {step === 0 && <StepDisclaimer onNext={handleDisclaimerDone} />}
+          {step === 1 && <StepGoalsConcerns userId={user.id} onNext={handleGoalsDone} onBack={() => goToStep(0)} />}
+          {step === 2 && <StepMorningRoutine userId={user.id} onNext={handleMorningDone} onBack={() => goToStep(1)} products={products} setProducts={setProducts} />}
+          {step === 3 && <StepEveningRoutine userId={user.id} onNext={handleEveningDone} onBack={() => goToStep(2)} products={products} setProducts={setProducts} />}
+          {step === 4 && <StepOtherProducts userId={user.id} onNext={handleOtherProductsDone} onBack={() => goToStep(hasEvening ? 3 : 2)} />}
+          {step === 5 && <StepFacePhotos userId={user.id} onNext={handlePhotosDone} onBack={() => goToStep(4)} />}
+          {step === 6 && <StepDone productCount={productCount} onFinish={handleFinish} />}
+        </div>
       </div>
     </div>
   );
