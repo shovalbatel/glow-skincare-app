@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent } from '@/components/ui/card';
@@ -198,6 +198,7 @@ function StepGoalsConcerns({
         <div className="grid grid-cols-2 gap-2">
           {GOALS.map(({ key, emoji }) => (
             <button
+              type="button"
               key={key}
               onClick={() => toggleGoal(key)}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-start transition-colors ${
@@ -219,6 +220,7 @@ function StepGoalsConcerns({
         <div className="grid grid-cols-2 gap-2">
           {CONCERNS.map(({ key, emoji }) => (
             <button
+              type="button"
               key={key}
               onClick={() => toggleConcern(key)}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-start transition-colors ${
@@ -234,13 +236,15 @@ function StepGoalsConcerns({
         </div>
       </div>
 
-      {/* Navigation */}
-      <Button onClick={handleContinue} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
-        {t('common.continue')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
-      </Button>
-      <Button variant="ghost" onClick={onBack} className="w-full text-stone-400">
-        <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
-      </Button>
+      {/* Navigation — sticky at bottom */}
+      <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-white via-white to-transparent -mx-5 px-5">
+        <Button onClick={handleContinue} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
+          {t('common.continue')} <ChevronRight className="w-4 h-4 ms-2 rtl:rotate-180" />
+        </Button>
+        <Button variant="ghost" onClick={onBack} className="w-full text-stone-400 mt-1">
+          <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -1285,7 +1289,7 @@ export default function OnboardPage() {
   const totalDots = 7;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white overflow-x-hidden">
       {/* Language toggle */}
       <div className="fixed top-4 end-4 z-50 flex gap-1 bg-white rounded-full p-1 shadow-sm border border-rose-100">
         {(['en', 'he'] as Locale[]).map((l) => (
