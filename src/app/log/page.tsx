@@ -19,13 +19,15 @@ import {
   SKIN_CONDITION_ICONS,
 } from '@/lib/types';
 import { useLocale } from '@/components/locale-provider';
+import { SmartAddSheet } from '@/components/product-add-flow';
 
 const ALL_CONDITIONS: SkinCondition[] = [
   'glow', 'smoothness', 'dryness', 'oily', 'redness', 'irritation', 'breakout', 'tight',
 ];
 
 export default function LogPage() {
-  const { state, saveLog } = useAppState();
+  const { state, saveLog, addProduct } = useAppState();
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const { t } = useLocale();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [amCompleted, setAmCompleted] = useState(false);
@@ -160,6 +162,12 @@ export default function LogPage() {
                 </label>
               ))}
             </div>
+            <button
+              onClick={() => setIsAddOpen(true)}
+              className="mt-2 text-xs text-rose-500 hover:text-rose-600 flex items-center gap-1"
+            >
+              ＋ {t('log.addProduct')}
+            </button>
           </CardContent>
         </Card>
       </div>
@@ -196,6 +204,12 @@ export default function LogPage() {
                 </label>
               ))}
             </div>
+            <button
+              onClick={() => setIsAddOpen(true)}
+              className="mt-2 text-xs text-rose-500 hover:text-rose-600 flex items-center gap-1"
+            >
+              ＋ {t('log.addProduct')}
+            </button>
           </CardContent>
         </Card>
       </div>
@@ -285,6 +299,15 @@ export default function LogPage() {
           )}
         </Button>
       </div>
+
+      <SmartAddSheet
+        open={isAddOpen}
+        onOpenChange={setIsAddOpen}
+        onSave={(product) => {
+          addProduct(product);
+          setIsAddOpen(false);
+        }}
+      />
     </AppShell>
   );
 }

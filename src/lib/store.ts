@@ -281,6 +281,19 @@ export async function fetchFacePhotos(userId: string): Promise<string[]> {
   return (data || []).map((r: { public_url: string }) => r.public_url);
 }
 
+export async function fetchFacePhotosWithDates(userId: string): Promise<Array<{ url: string; date: string }>> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('face_photos')
+    .select('public_url, uploaded_at')
+    .eq('user_id', userId)
+    .order('uploaded_at', { ascending: false });
+  return (data || []).map((r: { public_url: string; uploaded_at: string }) => ({
+    url: r.public_url,
+    date: r.uploaded_at,
+  }));
+}
+
 export async function fetchSkinProfile(userId: string): Promise<{ goals: string[]; concerns: string[] }> {
   const supabase = createClient();
   const { data } = await supabase

@@ -321,6 +321,22 @@ const en = {
   'rec.reorder': 'Reorder',
   'rec.frequency': 'Frequency',
 
+  // Profile
+  'routine.addProduct': 'Add new product',
+  'log.addProduct': 'Add product',
+  'profile.title': 'Profile',
+  'profile.account': 'Account',
+  'profile.signOut': 'Sign Out',
+  'profile.skinProfile': 'Skin Profile',
+  'profile.saveChanges': 'Save Changes',
+  'profile.saved': 'Saved!',
+  'profile.skinJourney': 'Your Skin Journey',
+  'profile.addPhoto': 'Add new photo',
+  'profile.noPhotos': 'No photos yet — add one to track your progress',
+  'profile.language': 'Language',
+  'profile.appInfo': 'Glow — Skincare Tracker v1.0',
+  'profile.disclaimer': 'AI recommendations are for informational purposes only',
+
   // Language
   'lang.choose': 'Choose language',
   'lang.en': 'English',
@@ -647,6 +663,22 @@ const he: Record<string, string> = {
   'rec.change_product': 'החלפת מוצר',
   'rec.reorder': 'שינוי סדר',
   'rec.frequency': 'תדירות',
+
+  // Profile
+  'routine.addProduct': 'הוספת מוצר חדש',
+  'log.addProduct': 'הוספת מוצר',
+  'profile.title': 'פרופיל',
+  'profile.account': 'חשבון',
+  'profile.signOut': 'התנתקות',
+  'profile.skinProfile': 'פרופיל עור',
+  'profile.saveChanges': 'שמירת שינויים',
+  'profile.saved': 'נשמר!',
+  'profile.skinJourney': 'המסע של העור שלך',
+  'profile.addPhoto': 'הוספת תמונה חדשה',
+  'profile.noPhotos': 'אין תמונות עדיין — הוסיפ/י אחת כדי לעקוב אחרי ההתקדמות',
+  'profile.language': 'שפה',
+  'profile.appInfo': 'Glow — מעקב טיפוח v1.0',
+  'profile.disclaimer': 'המלצות AI הן למטרות מידע בלבד',
 
   // Language
   'lang.choose': 'בחר/י שפה',

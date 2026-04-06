@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
 import { useLocale } from '@/components/locale-provider';
 import { Locale } from '@/lib/translations';
@@ -13,8 +14,8 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, subtitle, action, showUser = false }: PageHeaderProps) {
-  const { user, signOut } = useAuth();
-  const { locale, setLocale, t } = useLocale();
+  const { user } = useAuth();
+  const { locale, setLocale } = useLocale();
 
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const name = (user?.user_metadata?.full_name as string) || user?.email || '';
@@ -47,11 +48,7 @@ export function PageHeader({ title, subtitle, action, showUser = false }: PageHe
           ))}
         </div>
         {showUser && user && (
-          <button
-            onClick={signOut}
-            className="flex items-center gap-1.5 group"
-            title={t('common.done')}
-          >
+          <Link href="/profile" className="flex items-center gap-1.5 group">
             {avatarUrl ? (
               <img
                 src={avatarUrl}
@@ -63,7 +60,7 @@ export function PageHeader({ title, subtitle, action, showUser = false }: PageHe
                 {initial}
               </div>
             )}
-          </button>
+          </Link>
         )}
       </div>
     </div>

@@ -16,9 +16,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Sun, Moon, Pencil, CheckCircle2, Circle } from 'lucide-react';
 import { RoutineDay } from '@/lib/types';
 import { useLocale } from '@/components/locale-provider';
+import { SmartAddSheet } from '@/components/product-add-flow';
 
 export default function RoutinePage() {
-  const { state, updateRoutine } = useAppState();
+  const { state, updateRoutine, addProduct } = useAppState();
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const { t } = useLocale();
   const [editingDay, setEditingDay] = useState<RoutineDay | null>(null);
   const [editName, setEditName] = useState('');
@@ -129,6 +131,12 @@ export default function RoutinePage() {
                               </label>
                             ))}
                           </div>
+                          <button
+                            onClick={() => setIsAddOpen(true)}
+                            className="mt-2 text-xs text-rose-500 hover:text-rose-600 flex items-center gap-1"
+                          >
+                            ＋ {t('routine.addProduct')}
+                          </button>
                         </div>
                         <div>
                           <Label className="text-xs text-stone-500 flex items-center gap-1"><Moon className="w-3 h-3" /> {t('routine.eveningProducts')}</Label>
@@ -143,6 +151,12 @@ export default function RoutinePage() {
                               </label>
                             ))}
                           </div>
+                          <button
+                            onClick={() => setIsAddOpen(true)}
+                            className="mt-2 text-xs text-rose-500 hover:text-rose-600 flex items-center gap-1"
+                          >
+                            ＋ {t('routine.addProduct')}
+                          </button>
                         </div>
                         <Button onClick={saveEdit} className="w-full bg-rose-500 hover:bg-rose-600 text-white">
                           {t('routine.saveChanges')}
@@ -177,6 +191,15 @@ export default function RoutinePage() {
           );
         })}
       </div>
+
+      <SmartAddSheet
+        open={isAddOpen}
+        onOpenChange={setIsAddOpen}
+        onSave={(product) => {
+          addProduct(product);
+          setIsAddOpen(false);
+        }}
+      />
     </AppShell>
   );
 }
