@@ -250,6 +250,8 @@ const en = {
   'routine.pickerNoResults': 'No products match your search',
   'routine.pickerEmpty': 'You have no products yet',
   'routine.pickerDone': 'Done',
+  'routine.moveStepUp': 'Move step up',
+  'routine.moveStepDown': 'Move step down',
 
   // Step explanations (one short sentence per category, time-agnostic)
   'step.about.cleanser': 'Wash away dirt, oil, and buildup so the next steps can sink in.',
@@ -707,6 +709,8 @@ const he: Record<string, string> = {
   'routine.pickerNoResults': 'לא נמצאו מוצרים שתואמים לחיפוש',
   'routine.pickerEmpty': 'אין לך עדיין מוצרים',
   'routine.pickerDone': 'סיום',
+  'routine.moveStepUp': 'הזזת השלב למעלה',
+  'routine.moveStepDown': 'הזזת השלב למטה',
 
   // Step explanations
   'step.about.cleanser': 'שוטף לכלוך, שמן ומשקעים כדי שהשלבים הבאים יוכלו להיספג.',

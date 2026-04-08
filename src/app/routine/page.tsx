@@ -28,6 +28,8 @@ import {
   Loader2,
   X,
   CheckSquare,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { Product, ProductCategory, RoutineDay, RoutineStep, CATEGORY_LABELS } from '@/lib/types';
 import { useLocale } from '@/components/locale-provider';
@@ -199,6 +201,18 @@ export default function RoutinePage() {
   const removeStep = (time: 'am' | 'pm', stepId: string) => {
     const setter = time === 'am' ? setEditAmSteps : setEditPmSteps;
     setter((prev) => prev.filter((s) => s.id !== stepId));
+  };
+
+  const moveStep = (time: 'am' | 'pm', stepId: string, delta: -1 | 1) => {
+    const setter = time === 'am' ? setEditAmSteps : setEditPmSteps;
+    setter((prev) => {
+      const idx = prev.findIndex((s) => s.id === stepId);
+      const target = idx + delta;
+      if (idx === -1 || target < 0 || target >= prev.length) return prev;
+      const next = prev.slice();
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
   };
 
   const setStepProducts = (
@@ -483,6 +497,7 @@ export default function RoutinePage() {
                   aiHints={aiHints}
                   onAddStep={(cat) => addStep('am', cat)}
                   onRemoveStep={(id) => removeStep('am', id)}
+                  onMoveStep={(id, delta) => moveStep('am', id, delta)}
                   onRemoveProduct={(stepId, pid) => removeStepProduct('am', stepId, pid)}
                   onOpenPicker={(stepId) => setPickerStep({ time: 'am', stepId })}
                   onOpenAi={(stepId) => setAiStep({ time: 'am', stepId })}
@@ -501,6 +516,7 @@ export default function RoutinePage() {
                   aiHints={aiHints}
                   onAddStep={(cat) => addStep('pm', cat)}
                   onRemoveStep={(id) => removeStep('pm', id)}
+                  onMoveStep={(id, delta) => moveStep('pm', id, delta)}
                   onRemoveProduct={(stepId, pid) => removeStepProduct('pm', stepId, pid)}
                   onOpenPicker={(stepId) => setPickerStep({ time: 'pm', stepId })}
                   onOpenAi={(stepId) => setAiStep({ time: 'pm', stepId })}
@@ -639,6 +655,7 @@ function StepEditor({
   aiHints,
   onAddStep,
   onRemoveStep,
+  onMoveStep,
   onRemoveProduct,
   onOpenPicker,
   onOpenAi,
@@ -650,6 +667,7 @@ function StepEditor({
   aiHints?: Record<string, { name: string; reason: string }>;
   onAddStep: (category: ProductCategory) => void;
   onRemoveStep: (stepId: string) => void;
+  onMoveStep: (stepId: string, delta: -1 | 1) => void;
   onRemoveProduct: (stepId: string, productId: string) => void;
   onOpenPicker: (stepId: string) => void;
   onOpenAi: (stepId: string) => void;
@@ -669,7 +687,7 @@ function StepEditor({
         {steps.length === 0 && (
           <p className="text-xs text-stone-400 italic">{t('routine.firstAddStep')}</p>
         )}
-        {steps.map((step) => {
+        {steps.map((step, idx) => {
           const stepLabel = t('cat.' + step.category);
           const explanation = t('step.about.' + step.category);
           const hint =
@@ -677,26 +695,51 @@ function StepEditor({
           const stepProducts = step.productIds
             .map((id) => allProducts.find((p) => p.id === id))
             .filter((p): p is Product => !!p);
+          const canMoveUp = idx > 0;
+          const canMoveDown = idx < steps.length - 1;
           return (
             <div
               key={step.id}
               className="border border-stone-200 rounded-xl p-3 bg-white"
             >
-              <div className="flex items-start justify-between mb-1">
+              <div className="flex items-start justify-between mb-1 gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-stone-700">{stepLabel}</p>
+                  <p className="text-sm font-semibold text-stone-700">
+                    <span className="text-stone-400 me-1.5">{idx + 1}.</span>
+                    {stepLabel}
+                  </p>
                   {explanation && explanation !== 'step.about.' + step.category && (
                     <p className="text-[11px] text-stone-400 mt-0.5">{explanation}</p>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onRemoveStep(step.id)}
-                  className="text-stone-300 hover:text-rose-500 -me-1"
-                  aria-label={t('routine.deleteStep')}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onMoveStep(step.id, -1)}
+                    disabled={!canMoveUp}
+                    className="text-stone-300 hover:text-rose-500 disabled:opacity-30 disabled:hover:text-stone-300 p-1"
+                    aria-label={t('routine.moveStepUp')}
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onMoveStep(step.id, 1)}
+                    disabled={!canMoveDown}
+                    className="text-stone-300 hover:text-rose-500 disabled:opacity-30 disabled:hover:text-stone-300 p-1"
+                    aria-label={t('routine.moveStepDown')}
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveStep(step.id)}
+                    className="text-stone-300 hover:text-rose-500 p-1 ms-1"
+                    aria-label={t('routine.deleteStep')}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               {hint && (
