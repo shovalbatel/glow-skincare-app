@@ -103,6 +103,27 @@ export function ProductForm({
   const [notes, setNotes] = useState(src?.notes || '');
   const [purchaseUrl, setPurchaseUrl] = useState(src?.purchaseUrl || '');
   const [enriching, setEnriching] = useState(false);
+  const [findingLink, setFindingLink] = useState(false);
+
+  const handleFindBuyLink = async () => {
+    if (!name.trim() || findingLink) return;
+    setFindingLink(true);
+    try {
+      const res = await fetch('/api/find-buy-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), brand: brand.trim() }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (res.ok && data.url) {
+        setPurchaseUrl(data.url);
+      }
+    } catch (e) {
+      console.warn('[ProductForm] find buy link failed', e);
+    } finally {
+      setFindingLink(false);
+    }
+  };
 
   // Manually trigger LLM/web enrichment for the current name + brand. Only
   // touches fields the user hasn't filled in.
@@ -347,7 +368,22 @@ export function ProductForm({
         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('form.notesPlaceholder')} className="mt-1" rows={2} />
       </div>
       <div>
-        <Label className="text-xs text-stone-500">{t('form.purchaseUrl')}</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-stone-500">{t('form.purchaseUrl')}</Label>
+          <button
+            type="button"
+            onClick={handleFindBuyLink}
+            disabled={!name.trim() || findingLink}
+            className="text-[11px] text-rose-500 hover:text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+          >
+            {findingLink ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Sparkles className="w-3 h-3" />
+            )}
+            {findingLink ? t('form.findingBuyLink') : t('form.findBuyLink')}
+          </button>
+        </div>
         <Input
           value={purchaseUrl}
           onChange={(e) => setPurchaseUrl(e.target.value)}
