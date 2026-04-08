@@ -32,8 +32,8 @@ export default function HomePage() {
   const routineDay = getTodayRoutineDay(state);
   const todayLog = getLogByDate(state, today);
 
-  const amProducts = routineDay?.amProducts.map((id) => getProductById(state, id)).filter(Boolean) || [];
-  const pmProducts = routineDay?.pmProducts.map((id) => getProductById(state, id)).filter(Boolean) || [];
+  const amSteps = routineDay?.amSteps || [];
+  const pmSteps = routineDay?.pmSteps || [];
 
   const weekLogs = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -114,18 +114,37 @@ export default function HomePage() {
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 ms-auto" />
                 )}
               </div>
-              <div className="space-y-2">
-                {amProducts.map((p) => p && (
-                  <div key={p.id} className="flex items-center gap-2.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-rose-300" />
-                    <div>
-                      <span className="text-sm text-stone-700">{p.name}</span>
-                      <span className="text-xs text-stone-400 ms-1.5">{p.brand}</span>
+              <div className="space-y-3">
+                {amSteps.map((step) => {
+                  const products = step.productIds
+                    .map((id) => getProductById(state, id))
+                    .filter(Boolean);
+                  return (
+                    <div key={step.id}>
+                      <p className="text-[11px] font-medium text-stone-500 uppercase tracking-wider mb-1">
+                        {t('cat.' + step.category)}
+                      </p>
+                      {products.length === 0 ? (
+                        <div className="flex items-center gap-2.5 ms-0.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
+                          <span className="text-xs text-stone-400 italic">{t('home.noProductYet')}</span>
+                        </div>
+                      ) : (
+                        products.map((p) => p && (
+                          <div key={p.id} className="flex items-center gap-2.5 ms-0.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-rose-300" />
+                            <div>
+                              <span className="text-sm text-stone-700">{p.name}</span>
+                              <span className="text-xs text-stone-400 ms-1.5">{p.brand}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                  </div>
-                ))}
-                {amProducts.length === 0 && (
-                  <p className="text-xs text-stone-400 italic">{t('home.noProducts')}</p>
+                  );
+                })}
+                {amSteps.length === 0 && (
+                  <p className="text-xs text-stone-400 italic">{t('home.noSteps')}</p>
                 )}
               </div>
             </CardContent>
@@ -141,18 +160,37 @@ export default function HomePage() {
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 ms-auto" />
                 )}
               </div>
-              <div className="space-y-2">
-                {pmProducts.map((p) => p && (
-                  <div key={p.id} className="flex items-center gap-2.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
-                    <div>
-                      <span className="text-sm text-stone-700">{p.name}</span>
-                      <span className="text-xs text-stone-400 ms-1.5">{p.brand}</span>
+              <div className="space-y-3">
+                {pmSteps.map((step) => {
+                  const products = step.productIds
+                    .map((id) => getProductById(state, id))
+                    .filter(Boolean);
+                  return (
+                    <div key={step.id}>
+                      <p className="text-[11px] font-medium text-stone-500 uppercase tracking-wider mb-1">
+                        {t('cat.' + step.category)}
+                      </p>
+                      {products.length === 0 ? (
+                        <div className="flex items-center gap-2.5 ms-0.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
+                          <span className="text-xs text-stone-400 italic">{t('home.noProductYet')}</span>
+                        </div>
+                      ) : (
+                        products.map((p) => p && (
+                          <div key={p.id} className="flex items-center gap-2.5 ms-0.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
+                            <div>
+                              <span className="text-sm text-stone-700">{p.name}</span>
+                              <span className="text-xs text-stone-400 ms-1.5">{p.brand}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                  </div>
-                ))}
-                {pmProducts.length === 0 && (
-                  <p className="text-xs text-stone-400 italic">{t('home.noProducts')}</p>
+                  );
+                })}
+                {pmSteps.length === 0 && (
+                  <p className="text-xs text-stone-400 italic">{t('home.noSteps')}</p>
                 )}
               </div>
             </CardContent>

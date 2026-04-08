@@ -88,13 +88,15 @@ interface RoutineProduct {
 
 // Build a step list for a given time (am/pm) by walking the default step
 // definitions in order and attaching any onboarding-collected products that
-// match each step's category. Steps with no products are still included so
-// the user can fill them in later from the log page.
+// match each step's category. Categories the user explicitly skipped (via
+// "Don't use this step") are excluded entirely. Steps with no products but
+// not skipped are kept so the user can attach a product later.
 function buildStepsForTime(
   savedProducts: Product[],
   collected: RoutineProduct[],
   time: 'am' | 'pm',
-  defaultSteps: RoutineStepDef[]
+  defaultSteps: RoutineStepDef[],
+  skipped: Set<ProductCategory>
 ): RoutineStep[] {
   const filtered = collected.filter((rp) => rp.time === time);
   const productsByCategory = new Map<ProductCategory, string[]>();
@@ -117,10 +119,11 @@ function buildStepsForTime(
   const seen = new Set<ProductCategory>();
   const result: RoutineStep[] = [];
 
-  // 1. Walk default steps in order so the routine always has structure,
-  //    even when the user added no products.
+  // 1. Walk default steps in order so the routine has structure. Skip any
+  //    category the user explicitly opted out of.
   for (const def of defaultSteps) {
     seen.add(def.category);
+    if (skipped.has(def.category)) continue;
     result.push({
       id: newStepId(def.category),
       category: def.category,
@@ -132,6 +135,7 @@ function buildStepsForTime(
   //    aren't in the default list (e.g. custom steps).
   for (const rp of filtered) {
     if (seen.has(rp.stepCategory)) continue;
+    if (skipped.has(rp.stepCategory)) continue;
     seen.add(rp.stepCategory);
     result.push({
       id: newStepId(rp.stepCategory),
@@ -493,12 +497,16 @@ function StepMorningRoutine({
   onBack,
   products,
   setProducts,
+  skippedCategories,
+  setSkippedCategories,
 }: {
   userId: string;
   onNext: (continueEvening: boolean) => void;
   onBack: () => void;
   products: RoutineProduct[];
   setProducts: React.Dispatch<React.SetStateAction<RoutineProduct[]>>;
+  skippedCategories: Set<ProductCategory>;
+  setSkippedCategories: React.Dispatch<React.SetStateAction<Set<ProductCategory>>>;
 }) {
   const { t } = useLocale();
   const [stepIndex, setStepIndex] = useState(0);
@@ -518,10 +526,17 @@ function StepMorningRoutine({
     if (!currentStep) return;
     await storeAddProduct(userId, { ...data, routineTime: 'am', category: currentStep.category });
     setProducts((prev) => [...prev, { product: data, stepCategory: currentStep.category, time: 'am' }]);
+    // Adding a product implies the user is keeping this step.
+    setSkippedCategories((prev) => {
+      if (!prev.has(currentStep.category)) return prev;
+      const next = new Set(prev);
+      next.delete(currentStep.category);
+      return next;
+    });
     setAddingProduct(false);
   };
 
-  const goNextStep = () => {
+  const advance = () => {
     setAddingProduct(false);
     if (stepIndex < allSteps.length - 1) {
       setStepIndex(stepIndex + 1);
@@ -530,6 +545,32 @@ function StepMorningRoutine({
       setDone(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  };
+
+  // Keep this step in the routine (with or without products) and move on.
+  const goNextStep = () => {
+    if (currentStep) {
+      setSkippedCategories((prev) => {
+        if (!prev.has(currentStep.category)) return prev;
+        const next = new Set(prev);
+        next.delete(currentStep.category);
+        return next;
+      });
+    }
+    advance();
+  };
+
+  // Mark this step as not part of the user's routine and move on.
+  const skipCurrentStep = () => {
+    if (currentStep) {
+      setSkippedCategories((prev) => {
+        if (prev.has(currentStep.category)) return prev;
+        const next = new Set(prev);
+        next.add(currentStep.category);
+        return next;
+      });
+    }
+    advance();
   };
 
   const goPrevStep = () => {
@@ -681,22 +722,38 @@ function StepMorningRoutine({
 
       {/* Navigation */}
       <div className="space-y-2">
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
-            <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
-          </Button>
-          <Button onClick={goNextStep} className="flex-1 h-11 rounded-xl text-white bg-rose-500 hover:bg-rose-600">
-            {productsForCurrentStep.length > 0 ? (
-              <>{t('onboard.step.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></>
-            ) : (
-              <><SkipForward className="w-4 h-4 me-1" /> {t('onboard.step.dontUse')}</>
-            )}
-          </Button>
-        </div>
-        {productsForCurrentStep.length === 0 && (
-          <button onClick={goNextStep} className="w-full text-center text-xs text-stone-400 hover:text-rose-500 transition-colors py-1">
-            {t('onboard.step.addLater')}
-          </button>
+        {productsForCurrentStep.length > 0 ? (
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
+              <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
+            </Button>
+            <Button onClick={goNextStep} className="flex-1 h-11 rounded-xl text-white bg-rose-500 hover:bg-rose-600">
+              {t('onboard.step.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2">
+              <Button
+                onClick={goNextStep}
+                aria-label={t('onboard.step.addLater')}
+                className="flex-1 h-11 rounded-xl text-white bg-rose-500 hover:bg-rose-600"
+              >
+                {t('onboard.step.addLaterShort')}
+              </Button>
+              <Button
+                onClick={skipCurrentStep}
+                variant="outline"
+                aria-label={t('onboard.step.dontUse')}
+                className="flex-1 h-11 rounded-xl border-stone-300 text-stone-600 hover:bg-stone-50"
+              >
+                <SkipForward className="w-4 h-4 me-1" /> {t('onboard.step.dontUseShort')}
+              </Button>
+            </div>
+            <Button variant="ghost" onClick={goPrevStep} className="w-full text-stone-400">
+              <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
+            </Button>
+          </>
         )}
       </div>
     </div>
@@ -715,12 +772,16 @@ function StepEveningRoutine({
   onBack,
   products,
   setProducts,
+  skippedCategories,
+  setSkippedCategories,
 }: {
   userId: string;
   onNext: (dayVariations: EveningDayVariation[]) => void;
   onBack: () => void;
   products: RoutineProduct[];
   setProducts: React.Dispatch<React.SetStateAction<RoutineProduct[]>>;
+  skippedCategories: Set<ProductCategory>;
+  setSkippedCategories: React.Dispatch<React.SetStateAction<Set<ProductCategory>>>;
 }) {
   const { t } = useLocale();
   const [stepIndex, setStepIndex] = useState(0);
@@ -753,11 +814,17 @@ function StepEveningRoutine({
       setVariationProducts((prev) => [...prev, newProd]);
     } else {
       setProducts((prev) => [...prev, newProd]);
+      setSkippedCategories((prev) => {
+        if (!prev.has(currentStep.category)) return prev;
+        const next = new Set(prev);
+        next.delete(currentStep.category);
+        return next;
+      });
     }
     setAddingProduct(false);
   };
 
-  const goNextStep = () => {
+  const advance = () => {
     setAddingProduct(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (buildingVariation) {
@@ -779,6 +846,33 @@ function StepEveningRoutine({
         setAskingVariation(true);
       }
     }
+  };
+
+  // Keep this step in the routine and move on. Variations don't track skipped
+  // categories — they only define which products run on a given day.
+  const goNextStep = () => {
+    if (!buildingVariation && currentStep) {
+      setSkippedCategories((prev) => {
+        if (!prev.has(currentStep.category)) return prev;
+        const next = new Set(prev);
+        next.delete(currentStep.category);
+        return next;
+      });
+    }
+    advance();
+  };
+
+  // Mark this step as not part of the user's evening routine.
+  const skipCurrentStep = () => {
+    if (!buildingVariation && currentStep) {
+      setSkippedCategories((prev) => {
+        if (prev.has(currentStep.category)) return prev;
+        const next = new Set(prev);
+        next.add(currentStep.category);
+        return next;
+      });
+    }
+    advance();
   };
 
   const goPrevStep = () => {
@@ -982,26 +1076,38 @@ function StepEveningRoutine({
 
       {/* Navigation */}
       <div className="space-y-2">
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
-            <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
-          </Button>
-          <Button onClick={goNextStep} className={`flex-1 h-11 rounded-xl text-white ${
-            productsForCurrentStep.length > 0
-              ? 'bg-rose-500 hover:bg-rose-600'
-              : 'bg-stone-300 hover:bg-stone-400'
-          }`}>
-            {productsForCurrentStep.length > 0 ? (
-              <>{t('onboard.step.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" /></>
-            ) : (
-              <><SkipForward className="w-4 h-4 me-1" /> {t('onboard.step.dontUse')}</>
-            )}
-          </Button>
-        </div>
-        {productsForCurrentStep.length === 0 && (
-          <button onClick={goNextStep} className="w-full text-center text-xs text-stone-400 hover:text-rose-500 transition-colors py-1">
-            {t('onboard.step.addLater')}
-          </button>
+        {productsForCurrentStep.length > 0 ? (
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={goPrevStep} className="text-stone-400">
+              <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
+            </Button>
+            <Button onClick={goNextStep} className="flex-1 h-11 rounded-xl text-white bg-rose-500 hover:bg-rose-600">
+              {t('onboard.step.nextStep')} <ChevronRight className="w-4 h-4 ms-1 rtl:rotate-180" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2">
+              <Button
+                onClick={goNextStep}
+                aria-label={t('onboard.step.addLater')}
+                className="flex-1 h-11 rounded-xl text-white bg-indigo-500 hover:bg-indigo-600"
+              >
+                {t('onboard.step.addLaterShort')}
+              </Button>
+              <Button
+                onClick={skipCurrentStep}
+                variant="outline"
+                aria-label={t('onboard.step.dontUse')}
+                className="flex-1 h-11 rounded-xl border-stone-300 text-stone-600 hover:bg-stone-50"
+              >
+                <SkipForward className="w-4 h-4 me-1" /> {t('onboard.step.dontUseShort')}
+              </Button>
+            </div>
+            <Button variant="ghost" onClick={goPrevStep} className="w-full text-stone-400">
+              <ChevronLeft className="w-4 h-4 me-1 rtl:rotate-180" /> {t('common.back')}
+            </Button>
+          </>
         )}
       </div>
     </div>
@@ -1328,6 +1434,8 @@ export default function OnboardPage() {
   const [products, setProducts] = useState<RoutineProduct[]>([]);
   const [hasEvening, setHasEvening] = useState(false);
   const [eveningVariations, setEveningVariations] = useState<EveningDayVariation[]>([]);
+  const [skippedAmCategories, setSkippedAmCategories] = useState<Set<ProductCategory>>(new Set());
+  const [skippedPmCategories, setSkippedPmCategories] = useState<Set<ProductCategory>>(new Set());
 
   const goToStep = useCallback((s: number) => {
     setStep(s);
@@ -1352,9 +1460,10 @@ export default function OnboardPage() {
       setHasEvening(true);
       goToStep(3);
     } else {
+      setHasEvening(false);
       goToStep(4); // Skip to other products
     }
-  }, []);
+  }, [goToStep]);
 
   // Step 3 -> 4: Evening done
   const handleEveningDone = useCallback((dayVariations: EveningDayVariation[]) => {
@@ -1373,10 +1482,12 @@ export default function OnboardPage() {
     const savedProducts = await fetchProducts(user.id);
 
     // Group active routine products by their step category, separately for AM and PM.
-    // Always seeded with the default AM/PM step categories so the routine has
-    // structure even when the user skipped products in the wizard.
-    const amSteps = buildStepsForTime(savedProducts, products, 'am', AM_STEPS);
-    const pmSteps = buildStepsForTime(savedProducts, products, 'pm', PM_STEPS);
+    // Categories the user explicitly skipped are dropped. If the user opted out
+    // of an evening routine entirely, pmSteps stays empty.
+    const amSteps = buildStepsForTime(savedProducts, products, 'am', AM_STEPS, skippedAmCategories);
+    const pmSteps = hasEvening
+      ? buildStepsForTime(savedProducts, products, 'pm', PM_STEPS, skippedPmCategories)
+      : [];
 
     const days: RoutineDay[] = [];
 
@@ -1393,7 +1504,7 @@ export default function OnboardPage() {
 
     // Additional day variations from evening builder — same morning, custom evening.
     eveningVariations.forEach((variation, idx) => {
-      const variationPmSteps = buildStepsForTime(savedProducts, variation.products, 'pm', PM_STEPS);
+      const variationPmSteps = buildStepsForTime(savedProducts, variation.products, 'pm', PM_STEPS, skippedPmCategories);
       days.push({
         id: `rd_${Date.now()}_v${idx}`,
         dayNumber: idx + 2,
@@ -1408,7 +1519,7 @@ export default function OnboardPage() {
     await updateRoutineDays(user.id, days, days.length);
 
     goToStep(5);
-  }, [user, products, eveningVariations, goToStep]);
+  }, [user, products, eveningVariations, hasEvening, skippedAmCategories, skippedPmCategories, goToStep]);
 
   // Step 5 -> 6: Photos done
   const handlePhotosDone = useCallback(() => goToStep(6), [goToStep]);
@@ -1463,8 +1574,8 @@ export default function OnboardPage() {
         <div key={`wizard-step-${step}`} className="animate-slide-in">
           {step === 0 && <StepDisclaimer onNext={handleDisclaimerDone} />}
           {step === 1 && <StepGoalsConcerns userId={user.id} onNext={handleGoalsDone} onBack={() => goToStep(0)} />}
-          {step === 2 && <StepMorningRoutine userId={user.id} onNext={handleMorningDone} onBack={() => goToStep(1)} products={products} setProducts={setProducts} />}
-          {step === 3 && <StepEveningRoutine userId={user.id} onNext={handleEveningDone} onBack={() => goToStep(2)} products={products} setProducts={setProducts} />}
+          {step === 2 && <StepMorningRoutine userId={user.id} onNext={handleMorningDone} onBack={() => goToStep(1)} products={products} setProducts={setProducts} skippedCategories={skippedAmCategories} setSkippedCategories={setSkippedAmCategories} />}
+          {step === 3 && <StepEveningRoutine userId={user.id} onNext={handleEveningDone} onBack={() => goToStep(2)} products={products} setProducts={setProducts} skippedCategories={skippedPmCategories} setSkippedCategories={setSkippedPmCategories} />}
           {step === 4 && <StepOtherProducts userId={user.id} onNext={handleOtherProductsDone} onBack={() => goToStep(hasEvening ? 3 : 2)} />}
           {step === 5 && <StepFacePhotos userId={user.id} onNext={handlePhotosDone} onBack={() => goToStep(4)} />}
           {step === 6 && <StepDone productCount={productCount} onFinish={handleFinish} />}
