@@ -86,16 +86,18 @@ interface RoutineProduct {
   time: 'am' | 'pm';
 }
 
-// Build a step list for a given time (am/pm) by walking the onboarding-collected
-// RoutineProducts in order, looking up the matching saved product by name+brand,
-// and grouping consecutive same-category items into one step.
+// Build a step list for a given time (am/pm) by walking the default step
+// definitions in order and attaching any onboarding-collected products that
+// match each step's category. Steps with no products are still included so
+// the user can fill them in later from the log page.
 function buildStepsForTime(
   savedProducts: Product[],
   collected: RoutineProduct[],
-  time: 'am' | 'pm'
+  time: 'am' | 'pm',
+  defaultSteps: RoutineStepDef[]
 ): RoutineStep[] {
   const filtered = collected.filter((rp) => rp.time === time);
-  const stepsByCategory = new Map<ProductCategory, string[]>();
+  const productsByCategory = new Map<ProductCategory, string[]>();
   for (const rp of filtered) {
     const found = savedProducts.find(
       (sp) =>
@@ -104,24 +106,41 @@ function buildStepsForTime(
         (sp.routineTime === time || sp.routineTime === 'both')
     );
     if (!found) continue;
-    const list = stepsByCategory.get(rp.stepCategory) || [];
+    const list = productsByCategory.get(rp.stepCategory) || [];
     if (!list.includes(found.id)) list.push(found.id);
-    stepsByCategory.set(rp.stepCategory, list);
+    productsByCategory.set(rp.stepCategory, list);
   }
-  // Preserve the order of categories as they were collected
-  const orderedCategories: ProductCategory[] = [];
+
+  const newStepId = (category: ProductCategory) =>
+    `step_${category}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const seen = new Set<ProductCategory>();
+  const result: RoutineStep[] = [];
+
+  // 1. Walk default steps in order so the routine always has structure,
+  //    even when the user added no products.
+  for (const def of defaultSteps) {
+    seen.add(def.category);
+    result.push({
+      id: newStepId(def.category),
+      category: def.category,
+      productIds: productsByCategory.get(def.category) || [],
+    });
+  }
+
+  // 2. Append any extra categories the user collected products for that
+  //    aren't in the default list (e.g. custom steps).
   for (const rp of filtered) {
-    if (!orderedCategories.includes(rp.stepCategory)) {
-      orderedCategories.push(rp.stepCategory);
-    }
+    if (seen.has(rp.stepCategory)) continue;
+    seen.add(rp.stepCategory);
+    result.push({
+      id: newStepId(rp.stepCategory),
+      category: rp.stepCategory,
+      productIds: productsByCategory.get(rp.stepCategory) || [],
+    });
   }
-  return orderedCategories
-    .filter((c) => stepsByCategory.has(c))
-    .map((category) => ({
-      id: `step_${category}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      category,
-      productIds: stepsByCategory.get(category)!,
-    }));
+
+  return result;
 }
 
 // ============ Progress Dots ============
@@ -172,7 +191,7 @@ function StepDisclaimer({ onNext }: { onNext: () => void }) {
       </Card>
 
       <label className="flex items-start gap-3 cursor-pointer">
-        <Checkbox checked={agreed} onCheckedChange={(c) => setAgreed(c === true)} className="mt-0.5 data-[state=checked]:bg-rose-500 data-[state=checked]:border-rose-500" />
+        <Checkbox checked={agreed} onCheckedChange={(c) => setAgreed(c === true)} className="mt-0.5 size-5 border-2 border-stone-400 data-[state=checked]:bg-rose-500 data-[state=checked]:border-rose-500" />
         <span className="text-sm text-stone-600 leading-snug">
           {t('onboard.disclaimer.checkbox')}
         </span>
@@ -539,7 +558,6 @@ function StepMorningRoutine({
 
   // Done summary
   if (done) {
-    const amCount = products.filter((p) => p.time === 'am').length;
     return (
       <div className="space-y-6">
         <div className="text-center">
@@ -547,7 +565,7 @@ function StepMorningRoutine({
             <CheckCircle2 className="w-7 h-7 text-emerald-600" />
           </div>
           <h2 className="text-xl font-semibold text-stone-800">{t('onboard.am.done')}</h2>
-          <p className="text-sm text-stone-500 mt-1">{amCount} {t('common.morning').toLowerCase()}</p>
+          <p className="text-sm text-stone-500 mt-1">{t('onboard.am.stepsCount', { count: String(allSteps.length) })}</p>
         </div>
 
         <Button onClick={() => onNext(true)} className="w-full h-12 bg-rose-500 hover:bg-rose-600 text-white rounded-xl">
@@ -807,7 +825,6 @@ function StepEveningRoutine({
 
   // Ask about day variations
   if (askingVariation && !buildingVariation) {
-    const pmCount = products.filter((p) => p.time === 'pm').length;
     return (
       <div className="space-y-6">
         <div className="text-center">
@@ -815,7 +832,7 @@ function StepEveningRoutine({
             <CheckCircle2 className="w-7 h-7 text-emerald-600" />
           </div>
           <h2 className="text-xl font-semibold text-stone-800">{t('onboard.pm.done')}</h2>
-          <p className="text-sm text-stone-500 mt-1">{pmCount} {t('common.evening').toLowerCase()}</p>
+          <p className="text-sm text-stone-500 mt-1">{t('onboard.pm.stepsCount', { count: String(allSteps.length) })}</p>
           {dayVariations.length > 0 && (
             <p className="text-xs text-emerald-500 mt-2">+ {dayVariations.length} day variation(s)</p>
           )}
@@ -1356,27 +1373,27 @@ export default function OnboardPage() {
     const savedProducts = await fetchProducts(user.id);
 
     // Group active routine products by their step category, separately for AM and PM.
-    const amSteps = buildStepsForTime(savedProducts, products, 'am');
-    const pmSteps = buildStepsForTime(savedProducts, products, 'pm');
+    // Always seeded with the default AM/PM step categories so the routine has
+    // structure even when the user skipped products in the wizard.
+    const amSteps = buildStepsForTime(savedProducts, products, 'am', AM_STEPS);
+    const pmSteps = buildStepsForTime(savedProducts, products, 'pm', PM_STEPS);
 
     const days: RoutineDay[] = [];
 
-    // Day 1: default daily routine
-    if (amSteps.length > 0 || pmSteps.length > 0) {
-      days.push({
-        id: `rd_${Date.now()}`,
-        dayNumber: 1,
-        name: 'Daily Routine',
-        amSteps,
-        pmSteps,
-        amProducts: amSteps.flatMap((s) => s.productIds),
-        pmProducts: pmSteps.flatMap((s) => s.productIds),
-      });
-    }
+    // Day 1: default daily routine — always saved.
+    days.push({
+      id: `rd_${Date.now()}`,
+      dayNumber: 1,
+      name: 'Daily Routine',
+      amSteps,
+      pmSteps,
+      amProducts: amSteps.flatMap((s) => s.productIds),
+      pmProducts: pmSteps.flatMap((s) => s.productIds),
+    });
 
     // Additional day variations from evening builder — same morning, custom evening.
     eveningVariations.forEach((variation, idx) => {
-      const variationPmSteps = buildStepsForTime(savedProducts, variation.products, 'pm');
+      const variationPmSteps = buildStepsForTime(savedProducts, variation.products, 'pm', PM_STEPS);
       days.push({
         id: `rd_${Date.now()}_v${idx}`,
         dayNumber: idx + 2,
@@ -1388,9 +1405,7 @@ export default function OnboardPage() {
       });
     });
 
-    if (days.length > 0) {
-      await updateRoutineDays(user.id, days, days.length);
-    }
+    await updateRoutineDays(user.id, days, days.length);
 
     goToStep(5);
   }, [user, products, eveningVariations, goToStep]);

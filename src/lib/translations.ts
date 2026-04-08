@@ -267,6 +267,7 @@ const en = {
   'onboard.am.subtitle': "We'll go step by step — add the products you currently use",
   'onboard.am.currentHint': "Tell us what you're using today — after setup, we'll suggest improvements and new products for you",
   'onboard.am.done': 'Morning routine set!',
+  'onboard.am.stepsCount': '{count} morning steps',
   'onboard.am.continueEvening': 'Continue to evening routine',
   'onboard.am.skipEvening': 'Skip evening for now',
 
@@ -274,6 +275,7 @@ const en = {
   'onboard.pm.title': "Now your evening routine",
   'onboard.pm.subtitle': "Same idea — step by step with your evening products",
   'onboard.pm.done': 'Evening routine set!',
+  'onboard.pm.stepsCount': '{count} evening steps',
   'onboard.pm.anotherDay': 'I have different routines on different days',
   'onboard.pm.anotherDayHint': 'Some people rotate treatments — retinol one night, acids the next',
   'onboard.pm.addDay': 'Add another day',
@@ -656,6 +658,7 @@ const he: Record<string, string> = {
   'onboard.am.subtitle': 'נעבור שלב אחר שלב — הוסיפ/י את המוצרים שבהם את/ה משתמש/ת כרגע',
   'onboard.am.currentHint': 'ספר/י לנו מה את/ה משתמש/ת היום — אחרי ההגדרה, נציע שיפורים ומוצרים חדשים',
   'onboard.am.done': 'שגרת הבוקר מוכנה!',
+  'onboard.am.stepsCount': '{count} שלבים בבוקר',
   'onboard.am.continueEvening': 'המשך לשגרת ערב',
   'onboard.am.skipEvening': 'דלג/י על ערב כרגע',
 
@@ -663,6 +666,7 @@ const he: Record<string, string> = {
   'onboard.pm.title': 'עכשיו שגרת הערב',
   'onboard.pm.subtitle': 'אותו רעיון — שלב אחר שלב עם מוצרי הערב',
   'onboard.pm.done': 'שגרת הערב מוכנה!',
+  'onboard.pm.stepsCount': '{count} שלבים בערב',
   'onboard.pm.anotherDay': 'יש לי שגרות שונות בימים שונים',
   'onboard.pm.anotherDayHint': 'חלק מהאנשים מחליפים טיפולים — רטינול לילה אחד, חומצות בלילה הבא',
   'onboard.pm.addDay': 'הוספת יום נוסף',

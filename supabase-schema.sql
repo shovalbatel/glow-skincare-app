@@ -78,3 +78,52 @@ create table user_settings (
 alter table user_settings enable row level security;
 create policy "Users manage own settings" on user_settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 5. Face photos
+create table if not exists face_photos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  storage_path text not null,
+  public_url text not null,
+  uploaded_at timestamptz not null default now()
+);
+
+alter table face_photos enable row level security;
+create policy "Users manage own face photos" on face_photos
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists idx_face_photos_user on face_photos(user_id);
+
+-- 6. Storage bucket + policies for face-photos
+-- Create the bucket (id must match the bucket name used in code)
+insert into storage.buckets (id, name, public)
+values ('face-photos', 'face-photos', true)
+on conflict (id) do nothing;
+
+-- Allow each user to manage objects under their own folder: <user_id>/...
+create policy "Users upload own face photos"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'face-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "Users read own face photos"
+  on storage.objects for select
+  using (
+    bucket_id = 'face-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "Users update own face photos"
+  on storage.objects for update
+  using (
+    bucket_id = 'face-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "Users delete own face photos"
+  on storage.objects for delete
+  using (
+    bucket_id = 'face-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
