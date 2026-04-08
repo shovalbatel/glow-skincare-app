@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   Select,
@@ -27,10 +26,17 @@ import {
   Plus,
   Trash2,
   Loader2,
+  X,
+  CheckSquare,
 } from 'lucide-react';
-import { ProductCategory, RoutineDay, RoutineStep, CATEGORY_LABELS } from '@/lib/types';
+import { Product, ProductCategory, RoutineDay, RoutineStep, CATEGORY_LABELS } from '@/lib/types';
 import { useLocale } from '@/components/locale-provider';
 import { SmartAddSheet } from '@/components/product-add-flow';
+import {
+  StepProductPicker,
+  StepAiSuggestSheet,
+  AiPick,
+} from '@/components/routine-step-pickers';
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_LABELS) as ProductCategory[];
 
@@ -57,6 +63,9 @@ export default function RoutinePage() {
   const [pendingAddStep, setPendingAddStep] = useState<{ time: 'am' | 'pm'; stepId: string } | null>(
     null
   );
+  // Per-step picker / AI sheets
+  const [pickerStep, setPickerStep] = useState<{ time: 'am' | 'pm'; stepId: string } | null>(null);
+  const [aiStep, setAiStep] = useState<{ time: 'am' | 'pm'; stepId: string } | null>(null);
   // AI hints per step (from build-with-AI), keyed by step id
   const [aiHints, setAiHints] = useState<Record<string, { name: string; reason: string }>>({});
   const [aiLoading, setAiLoading] = useState(false);
@@ -192,7 +201,18 @@ export default function RoutinePage() {
     setter((prev) => prev.filter((s) => s.id !== stepId));
   };
 
-  const toggleStepProduct = (
+  const setStepProducts = (
+    time: 'am' | 'pm',
+    stepId: string,
+    productIds: string[]
+  ) => {
+    const setter = time === 'am' ? setEditAmSteps : setEditPmSteps;
+    setter((prev) =>
+      prev.map((s) => (s.id === stepId ? { ...s, productIds } : s))
+    );
+  };
+
+  const removeStepProduct = (
     time: 'am' | 'pm',
     stepId: string,
     productId: string
@@ -201,16 +221,22 @@ export default function RoutinePage() {
     setter((prev) =>
       prev.map((s) =>
         s.id === stepId
-          ? {
-              ...s,
-              productIds: s.productIds.includes(productId)
-                ? s.productIds.filter((id) => id !== productId)
-                : [...s.productIds, productId],
-            }
+          ? { ...s, productIds: s.productIds.filter((id) => id !== productId) }
           : s
       )
     );
   };
+
+  const findStep = (
+    time: 'am' | 'pm',
+    stepId: string
+  ): RoutineStep | undefined => {
+    const list = time === 'am' ? editAmSteps : editPmSteps;
+    return list.find((s) => s.id === stepId);
+  };
+
+  const activePickerStep = pickerStep ? findStep(pickerStep.time, pickerStep.stepId) : undefined;
+  const activeAiStep = aiStep ? findStep(aiStep.time, aiStep.stepId) : undefined;
 
   const createRoutine = (mode: EditMode) => {
     const baseName =
@@ -219,23 +245,16 @@ export default function RoutinePage() {
         : mode === 'am'
         ? t('routine.newMorningName')
         : t('routine.newDayName');
+    // Routines start empty — the user picks their first step in the editor.
     const newRoutine: RoutineDay = {
       id: newRoutineId(),
       dayNumber: state.routineDays.length + 1,
       name: baseName,
-      amSteps: mode === 'pm' ? [] : [],
-      pmSteps: mode === 'am' ? [] : [],
+      amSteps: [],
+      pmSteps: [],
       amProducts: [],
       pmProducts: [],
     };
-    // Seed with one empty step on the relevant side(s) so the editor isn't
-    // visually empty.
-    if (mode !== 'pm') {
-      newRoutine.amSteps = [{ id: newStepId(), category: 'cleanser', productIds: [] }];
-    }
-    if (mode !== 'am') {
-      newRoutine.pmSteps = [{ id: newStepId(), category: 'cleanser', productIds: [] }];
-    }
     const updated = [...state.routineDays, newRoutine];
     updateRoutine(updated);
     setTimeout(() => startEdit(newRoutine), 100);
@@ -460,11 +479,13 @@ export default function RoutinePage() {
                 <StepEditor
                   time="am"
                   steps={editAmSteps}
-                  eligibleProducts={eligibleProducts}
+                  allProducts={state.products}
                   aiHints={aiHints}
                   onAddStep={(cat) => addStep('am', cat)}
                   onRemoveStep={(id) => removeStep('am', id)}
-                  onToggleProduct={(stepId, pid) => toggleStepProduct('am', stepId, pid)}
+                  onRemoveProduct={(stepId, pid) => removeStepProduct('am', stepId, pid)}
+                  onOpenPicker={(stepId) => setPickerStep({ time: 'am', stepId })}
+                  onOpenAi={(stepId) => setAiStep({ time: 'am', stepId })}
                   onAddNewProduct={(stepId) => {
                     setPendingAddStep({ time: 'am', stepId });
                     setIsAddOpen(true);
@@ -476,11 +497,13 @@ export default function RoutinePage() {
                 <StepEditor
                   time="pm"
                   steps={editPmSteps}
-                  eligibleProducts={eligibleProducts}
+                  allProducts={state.products}
                   aiHints={aiHints}
                   onAddStep={(cat) => addStep('pm', cat)}
                   onRemoveStep={(id) => removeStep('pm', id)}
-                  onToggleProduct={(stepId, pid) => toggleStepProduct('pm', stepId, pid)}
+                  onRemoveProduct={(stepId, pid) => removeStepProduct('pm', stepId, pid)}
+                  onOpenPicker={(stepId) => setPickerStep({ time: 'pm', stepId })}
+                  onOpenAi={(stepId) => setAiStep({ time: 'pm', stepId })}
                   onAddNewProduct={(stepId) => {
                     setPendingAddStep({ time: 'pm', stepId });
                     setIsAddOpen(true);
@@ -542,6 +565,67 @@ export default function RoutinePage() {
           setPendingAddStep(null);
         }}
       />
+
+      {/* Step product picker (multi-select from existing library) */}
+      {pickerStep && activePickerStep && (
+        <StepProductPicker
+          open={!!pickerStep}
+          onOpenChange={(next) => {
+            if (!next) setPickerStep(null);
+          }}
+          category={activePickerStep.category}
+          time={pickerStep.time}
+          allProducts={state.products}
+          initialSelected={activePickerStep.productIds}
+          onConfirm={(ids) => {
+            if (pickerStep) setStepProducts(pickerStep.time, pickerStep.stepId, ids);
+          }}
+          onAddNew={() => {
+            if (pickerStep) {
+              setPendingAddStep({ time: pickerStep.time, stepId: pickerStep.stepId });
+              setPickerStep(null);
+              setIsAddOpen(true);
+            }
+          }}
+        />
+      )}
+
+      {/* AI step suggestions (2-3 picks) */}
+      {aiStep && activeAiStep && (
+        <StepAiSuggestSheet
+          open={!!aiStep}
+          onOpenChange={(next) => {
+            if (!next) setAiStep(null);
+          }}
+          category={activeAiStep.category}
+          time={aiStep.time}
+          library={state.products}
+          onPick={async (pick: AiPick) => {
+            const newId = await addProduct({
+              name: pick.name,
+              brand: pick.brand,
+              category: pick.category,
+              description: pick.reason,
+              routineTime: aiStep!.time === 'am' ? 'am' : 'pm',
+              frequency: 'daily',
+              status: 'need_to_buy',
+              isActive: true,
+              notes: '',
+              purchaseUrl: '',
+            } as Omit<Product, 'id' | 'createdAt' | 'updatedAt'>);
+            if (newId && aiStep) {
+              const setter = aiStep.time === 'am' ? setEditAmSteps : setEditPmSteps;
+              setter((prev) =>
+                prev.map((s) =>
+                  s.id === aiStep.stepId
+                    ? { ...s, productIds: [...s.productIds, newId] }
+                    : s
+                )
+              );
+            }
+          }}
+        />
+      )}
     </AppShell>
   );
 }
@@ -551,20 +635,24 @@ export default function RoutinePage() {
 function StepEditor({
   time,
   steps,
-  eligibleProducts,
+  allProducts,
   aiHints,
   onAddStep,
   onRemoveStep,
-  onToggleProduct,
+  onRemoveProduct,
+  onOpenPicker,
+  onOpenAi,
   onAddNewProduct,
 }: {
   time: 'am' | 'pm';
   steps: RoutineStep[];
-  eligibleProducts: { id: string; name: string; brand: string }[];
+  allProducts: Product[];
   aiHints?: Record<string, { name: string; reason: string }>;
   onAddStep: (category: ProductCategory) => void;
   onRemoveStep: (stepId: string) => void;
-  onToggleProduct: (stepId: string, productId: string) => void;
+  onRemoveProduct: (stepId: string, productId: string) => void;
+  onOpenPicker: (stepId: string) => void;
+  onOpenAi: (stepId: string) => void;
   onAddNewProduct: (stepId: string) => void;
 }) {
   const { t } = useLocale();
@@ -579,62 +667,106 @@ function StepEditor({
 
       <div className="space-y-3 mt-2">
         {steps.length === 0 && (
-          <p className="text-xs text-stone-400 italic">{t('routine.noSteps')}</p>
+          <p className="text-xs text-stone-400 italic">{t('routine.firstAddStep')}</p>
         )}
         {steps.map((step) => {
+          const stepLabel = t('cat.' + step.category);
+          const explanation = t('step.about.' + step.category);
           const hint =
             step.productIds.length === 0 ? aiHints?.[step.id] : undefined;
+          const stepProducts = step.productIds
+            .map((id) => allProducts.find((p) => p.id === id))
+            .filter((p): p is Product => !!p);
           return (
-          <div key={step.id} className="border border-stone-200 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-stone-700">
-                {t('cat.' + step.category)}
-              </span>
-              <button
-                type="button"
-                onClick={() => onRemoveStep(step.id)}
-                className="text-stone-300 hover:text-rose-500"
-                aria-label={t('routine.deleteStep')}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            {hint && (
-              <div className="mb-2 rounded-md bg-rose-50 border border-rose-100 px-2 py-1.5">
-                <p className="text-[11px] font-medium text-rose-600">
-                  <Sparkles className="w-3 h-3 inline me-1" />
-                  {t('routine.aiSuggests')}: {hint.name}
-                </p>
-                {hint.reason && (
-                  <p className="text-[10px] text-stone-500 mt-0.5">{hint.reason}</p>
-                )}
-              </div>
-            )}
-            <div className="space-y-1.5">
-              {eligibleProducts.map((p) => (
-                <label key={p.id} className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={step.productIds.includes(p.id)}
-                    onCheckedChange={() => onToggleProduct(step.id, p.id)}
-                  />
-                  <span className="text-xs">
-                    {p.name} <span className="text-stone-400">{p.brand}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => onAddNewProduct(step.id)}
-              className="mt-2 text-xs text-rose-500 hover:text-rose-600 flex items-center gap-1"
+            <div
+              key={step.id}
+              className="border border-stone-200 rounded-xl p-3 bg-white"
             >
-              ＋ {t('routine.addProduct')}
-            </button>
-          </div>
+              <div className="flex items-start justify-between mb-1">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-stone-700">{stepLabel}</p>
+                  {explanation && explanation !== 'step.about.' + step.category && (
+                    <p className="text-[11px] text-stone-400 mt-0.5">{explanation}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRemoveStep(step.id)}
+                  className="text-stone-300 hover:text-rose-500 -me-1"
+                  aria-label={t('routine.deleteStep')}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {hint && (
+                <div className="mt-2 rounded-md bg-rose-50 border border-rose-100 px-2 py-1.5">
+                  <p className="text-[11px] font-medium text-rose-600">
+                    <Sparkles className="w-3 h-3 inline me-1" />
+                    {t('routine.aiSuggests')}: {hint.name}
+                  </p>
+                  {hint.reason && (
+                    <p className="text-[10px] text-stone-500 mt-0.5">{hint.reason}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Selected products as chips */}
+              {stepProducts.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  {stepProducts.map((p) => (
+                    <span
+                      key={p.id}
+                      className="inline-flex items-center gap-1.5 ps-2 pe-1 py-1 rounded-full bg-rose-50 border border-rose-100 text-[11px] text-stone-700 max-w-full"
+                    >
+                      <span className="truncate max-w-[140px]">{p.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveProduct(step.id, p.id)}
+                        className="text-rose-300 hover:text-rose-500 flex-shrink-0"
+                        aria-label={t('routine.removeProduct')}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-stone-400 italic mt-2">
+                  {t('routine.noProductsForStep')}
+                </p>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                <button
+                  type="button"
+                  onClick={() => onOpenPicker(step.id)}
+                  className="text-[11px] px-2.5 py-1.5 rounded-full bg-stone-100 text-stone-600 hover:bg-stone-200 inline-flex items-center gap-1"
+                >
+                  <CheckSquare className="w-3 h-3" /> {t('routine.pickProducts')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenAi(step.id)}
+                  className="text-[11px] px-2.5 py-1.5 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 inline-flex items-center gap-1"
+                >
+                  <Sparkles className="w-3 h-3" /> {t('routine.aiSuggestProducts')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAddNewProduct(step.id)}
+                  className="text-[11px] px-2.5 py-1.5 rounded-full text-rose-500 hover:text-rose-600 inline-flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> {t('routine.addNewProduct')}
+                </button>
+              </div>
+            </div>
           );
         })}
       </div>
 
+      {/* Add another step */}
       <div className="flex items-center gap-2 mt-3">
         <Select value={pickerCat} onValueChange={(v) => setPickerCat((v ?? '') as ProductCategory | '')}>
           <SelectTrigger className="h-8 text-xs flex-1">
