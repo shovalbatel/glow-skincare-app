@@ -14,9 +14,13 @@ create table products (
   status text not null default 'have',
   is_active boolean not null default true,
   notes text not null default '',
+  purchase_url text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Migration for existing installs:
+-- alter table products add column if not exists purchase_url text not null default '';
 
 alter table products enable row level security;
 create policy "Users manage own products" on products

@@ -24,6 +24,7 @@ function mapProduct(row: Record<string, unknown>): Product {
     status: row.status as Product['status'],
     isActive: row.is_active as boolean,
     notes: row.notes as string,
+    purchaseUrl: (row.purchase_url as string) || '',
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -148,6 +149,7 @@ export async function addProduct(
     status: product.status,
     is_active: product.isActive,
     notes: product.notes,
+    purchase_url: product.purchaseUrl || '',
   }).select('id').single();
   return data?.id;
 }
@@ -167,6 +169,7 @@ export async function updateProduct(
   if (updates.status !== undefined) row.status = updates.status;
   if (updates.isActive !== undefined) row.is_active = updates.isActive;
   if (updates.notes !== undefined) row.notes = updates.notes;
+  if (updates.purchaseUrl !== undefined) row.purchase_url = updates.purchaseUrl;
   row.updated_at = new Date().toISOString();
   await supabase.from('products').update(row).eq('id', id);
 }
@@ -213,7 +216,7 @@ export async function addOrUpdateLog(
 export async function updateRoutineDays(
   userId: string,
   days: RoutineDay[],
-  cycleLength: number
+  cycleLength: number = Math.max(days.length, 1)
 ): Promise<void> {
   const supabase = createClient();
 
@@ -252,13 +255,58 @@ export async function updateRoutineDays(
 
 // ---------- Helpers (operate on in-memory state) ----------
 
+export function getRoutinesForTime(
+  state: AppState,
+  time: 'am' | 'pm'
+): RoutineDay[] {
+  return state.routineDays.filter((d) =>
+    time === 'am' ? (d.amSteps?.length ?? 0) > 0 : (d.pmSteps?.length ?? 0) > 0
+  );
+}
+
+const LAST_USED_KEY = (time: 'am' | 'pm') => `dailyRoutine.lastUsed.${time}`;
+
+export function readLastUsedRoutineId(time: 'am' | 'pm'): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(LAST_USED_KEY(time));
+  } catch {
+    return null;
+  }
+}
+
+export function writeLastUsedRoutineId(time: 'am' | 'pm', id: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(LAST_USED_KEY(time), id);
+  } catch {
+    /* ignore quota / privacy mode */
+  }
+}
+
+/**
+ * Pick the routine to suggest for a given time slot. Prefers the most
+ * recently used (per device, via localStorage); falls back to the first
+ * routine that has steps for that slot.
+ */
+export function getSuggestedRoutine(
+  state: AppState,
+  time: 'am' | 'pm'
+): RoutineDay | null {
+  const candidates = getRoutinesForTime(state, time);
+  if (candidates.length === 0) return null;
+  const lastId = readLastUsedRoutineId(time);
+  if (lastId) {
+    const match = candidates.find((d) => d.id === lastId);
+    if (match) return match;
+  }
+  return candidates[0];
+}
+
+/** @deprecated Use getSuggestedRoutine. Kept temporarily for any caller still
+ *  reaching for "today's" routine; returns the suggested AM routine. */
 export function getTodayRoutineDay(state: AppState): RoutineDay | null {
-  if (state.routineDays.length === 0) return null;
-  const startDate = new Date('2026-04-01');
-  const today = new Date();
-  const diffDays = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  const dayIndex = ((diffDays % state.cycleLength) + state.cycleLength) % state.cycleLength;
-  return state.routineDays[dayIndex] || state.routineDays[0];
+  return getSuggestedRoutine(state, 'am') ?? getSuggestedRoutine(state, 'pm');
 }
 
 export function getProductById(state: AppState, id: string): Product | undefined {

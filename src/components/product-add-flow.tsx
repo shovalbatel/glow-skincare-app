@@ -56,6 +56,7 @@ export interface ExtractedProduct {
   routineTime: RoutineTime;
   frequency: string;
   notes: string;
+  purchaseUrl?: string;
 }
 
 export function ProductForm({
@@ -86,8 +87,11 @@ export function ProductForm({
   );
 
   const [status, setStatus] = useState<ProductStatus>(product?.status || 'have');
-  const [isActive, setIsActive] = useState(product?.isActive ?? true);
+  // isActive is no longer surfaced in the UI — kept defaulted true for any
+  // legacy callers that still read it.
+  const isActive = product?.isActive ?? true;
   const [notes, setNotes] = useState(src?.notes || '');
+  const [purchaseUrl, setPurchaseUrl] = useState(src?.purchaseUrl || '');
   const [enriching, setEnriching] = useState(false);
 
   // Manually trigger LLM/web enrichment for the current name + brand. Only
@@ -124,7 +128,7 @@ export function ProductForm({
     // Store the canonical preset key (translatable). For 'custom', store the
     // free-text the user typed.
     const frequency = frequencyPreset === 'custom' ? frequencyCustom : frequencyPreset;
-    onSave({ name, brand, category, description, routineTime, frequency, status, isActive, notes });
+    onSave({ name, brand, category, description, routineTime, frequency, status, isActive, notes, purchaseUrl: purchaseUrl.trim() });
     onClose();
   };
 
@@ -241,17 +245,17 @@ export function ProductForm({
         <Label className="text-xs text-stone-500">{t('form.notes')}</Label>
         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('form.notesPlaceholder')} className="mt-1" rows={2} />
       </div>
-      {!hideStatus && (
-        <div className="flex items-center gap-3">
-          <Label className="text-xs text-stone-500">{t('form.activeInRoutine')}</Label>
-          <button
-            onClick={() => setIsActive(!isActive)}
-            className={`w-10 h-6 rounded-full transition-colors ${isActive ? 'bg-rose-400' : 'bg-stone-200'}`}
-          >
-            <div className={`w-4 h-4 bg-white rounded-full mx-1 transition-transform ${isActive ? 'ltr:translate-x-4 rtl:-translate-x-4' : ''}`} />
-          </button>
-        </div>
-      )}
+      <div>
+        <Label className="text-xs text-stone-500">{t('form.purchaseUrl')}</Label>
+        <Input
+          value={purchaseUrl}
+          onChange={(e) => setPurchaseUrl(e.target.value)}
+          placeholder={t('form.purchaseUrlPlaceholder')}
+          className="mt-1"
+          type="url"
+          dir="ltr"
+        />
+      </div>
       <Button onClick={handleSubmit} className="w-full bg-rose-500 hover:bg-rose-600 text-white">
         {product ? t('form.update') : t('form.add')}
       </Button>
@@ -366,7 +370,7 @@ export function SmartAddSheet({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Extraction failed');
-      setExtracted(data);
+      setExtracted({ ...data, purchaseUrl: data.purchaseUrl || url.trim() });
       setMode('review');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to extract from URL');
@@ -517,7 +521,8 @@ export function SmartAddSheet({
                 </button>
               </div>
             ))}
-            <Button onClick={() => { batchExtracted.forEach((p) => onSave({ ...p, status: 'have', isActive: true })); handleOpenChange(false); }}
+            <Button
+              onClick={() => { batchExtracted.forEach((p) => onSave({ ...p, purchaseUrl: p.purchaseUrl || '', status: 'have', isActive: true })); handleOpenChange(false); }}
               className="w-full bg-violet-500 hover:bg-violet-600 text-white">
               {t('add.saveAll', { n: batchExtracted.length })}
             </Button>

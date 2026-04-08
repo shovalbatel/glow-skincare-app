@@ -3,7 +3,7 @@
 import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAppState } from '@/hooks/use-app-state';
-import { getTodayRoutineDay, getProductById, getLogByDate } from '@/lib/store';
+import { getSuggestedRoutine, getProductById, getLogByDate } from '@/lib/store';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,11 +29,13 @@ export default function HomePage() {
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayFormatted = format(new Date(), 'EEEE, MMMM d');
-  const routineDay = getTodayRoutineDay(state);
+  const amRoutine = getSuggestedRoutine(state, 'am');
+  const pmRoutine = getSuggestedRoutine(state, 'pm');
   const todayLog = getLogByDate(state, today);
 
-  const amSteps = routineDay?.amSteps || [];
-  const pmSteps = routineDay?.pmSteps || [];
+  const amSteps = amRoutine?.amSteps || [];
+  const pmSteps = pmRoutine?.pmSteps || [];
+  const hasRoutine = !!(amRoutine || pmRoutine);
 
   const weekLogs = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -93,23 +95,24 @@ export default function HomePage() {
       </div>
 
       {/* Today's routine */}
-      {routineDay && (
+      {hasRoutine && (
         <div className="px-5 mb-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-stone-700 uppercase tracking-wider">
               {t('home.todaysPlan')}
             </h2>
-            <Badge variant="secondary" className="bg-rose-100 text-rose-600 text-xs">
-              {routineDay.name}
-            </Badge>
           </div>
 
           {/* AM */}
+          {amRoutine && (
           <Card className="border-rose-100 shadow-sm mb-3">
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2 mb-3">
                 <Sun className="w-4 h-4 text-amber-500" />
                 <span className="text-sm font-semibold text-stone-700">{t('common.morning')}</span>
+                <Badge variant="secondary" className="bg-rose-100 text-rose-600 text-[10px]">
+                  {amRoutine.name}
+                </Badge>
                 {todayLog?.amCompleted && (
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 ms-auto" />
                 )}
@@ -149,13 +152,18 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* PM */}
+          {pmRoutine && (
           <Card className="border-rose-100 shadow-sm">
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2 mb-3">
                 <Moon className="w-4 h-4 text-indigo-400" />
                 <span className="text-sm font-semibold text-stone-700">{t('common.evening')}</span>
+                <Badge variant="secondary" className="bg-rose-100 text-rose-600 text-[10px]">
+                  {pmRoutine.name}
+                </Badge>
                 {todayLog?.pmCompleted && (
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 ms-auto" />
                 )}
@@ -195,6 +203,7 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
+          )}
         </div>
       )}
 

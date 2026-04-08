@@ -33,6 +33,7 @@ const en = {
   'common.paused': 'Paused',
   'common.tryAgain': 'Try again',
   'common.analyzing': 'Analyzing...',
+  'common.add': 'Add',
 
   // Categories
   'cat.cleanser': 'Cleanser',
@@ -108,6 +109,8 @@ const en = {
   'form.descriptionPlaceholder': 'Short description',
   'form.notes': 'Notes',
   'form.notesPlaceholder': 'Optional notes',
+  'form.purchaseUrl': 'Buy link',
+  'form.purchaseUrlPlaceholder': 'https://store.com/product (optional)',
   'form.activeInRoutine': 'Active in routine?',
   'form.update': 'Update Product',
   'form.add': 'Add Product',
@@ -174,6 +177,13 @@ const en = {
   'log.pmSection': 'Evening steps',
   'log.noRoutineYet': 'No routine yet — set one up first',
   'log.pickProduct': 'Pick a product',
+  'log.pickMorningRoutine': 'Pick a morning routine',
+  'log.pickEveningRoutine': 'Pick an evening routine',
+  'log.tapToAddStep': 'Tap "Add step" to start',
+  'log.changeProduct': 'Change product',
+  'log.addProductOptional': 'Add a product (optional)',
+  'log.noProductOptional': 'No product — that\'s okay',
+  'log.clearProduct': 'Clear product',
 
   // Routine
   'routine.title': 'Routine',
@@ -203,6 +213,22 @@ const en = {
   'routine.buildWithAi': 'Build this day with AI',
   'routine.buildingWithAi': 'Building with AI…',
   'routine.aiSuggests': 'AI suggests',
+  'routine.morningRoutines': 'Morning Routines',
+  'routine.eveningRoutines': 'Evening Routines',
+  'routine.addMorningRoutine': 'Add a morning routine',
+  'routine.addEveningRoutine': 'Add an evening routine',
+  'routine.addFullDayRoutine': 'Add a full-day routine',
+  'routine.fullDayBadge': 'Full day',
+  'routine.editRoutine': 'Edit routine',
+  'routine.deleteRoutine': 'Delete routine',
+  'routine.routineName': 'Routine name',
+  'routine.newMorningName': 'New morning routine',
+  'routine.newEveningName': 'New evening routine',
+  'routine.addEveningSide': 'Add an evening side to this routine',
+  'routine.addMorningSide': 'Add a morning side to this routine',
+  'routine.noProductYet': 'No product yet',
+  'routine.noMorningYet': "You don't have a morning routine yet",
+  'routine.noEveningYet': "You don't have an evening routine yet",
 
   // Shopping
   'shop.title': 'Shopping',
@@ -215,6 +241,7 @@ const en = {
   'shop.showAll': 'Show all',
   'shop.noItems': 'No items in this category',
   'shop.bought': 'Bought',
+  'shop.buy': 'Buy',
 
   // Insights
   'insights.title': 'Insights',
@@ -428,6 +455,7 @@ const he: Record<string, string> = {
   'common.paused': 'מושהה',
   'common.tryAgain': 'נסה שוב',
   'common.analyzing': 'מנתח...',
+  'common.add': 'הוספה',
 
   // Categories
   'cat.cleanser': 'ניקוי',
@@ -503,6 +531,8 @@ const he: Record<string, string> = {
   'form.descriptionPlaceholder': 'תיאור קצר',
   'form.notes': 'הערות',
   'form.notesPlaceholder': 'הערות נוספות',
+  'form.purchaseUrl': 'קישור לקנייה',
+  'form.purchaseUrlPlaceholder': 'https://store.com/product (אופציונלי)',
   'form.activeInRoutine': 'פעיל בשגרה?',
   'form.update': 'עדכון מוצר',
   'form.add': 'הוספת מוצר',
@@ -569,6 +599,13 @@ const he: Record<string, string> = {
   'log.pmSection': 'שלבי ערב',
   'log.noRoutineYet': 'עדיין אין שגרה — קודם צרי שגרה',
   'log.pickProduct': 'בחר מוצר',
+  'log.pickMorningRoutine': 'בחר/י שגרת בוקר',
+  'log.pickEveningRoutine': 'בחר/י שגרת ערב',
+  'log.tapToAddStep': 'הקש "הוסף שלב" כדי להתחיל',
+  'log.changeProduct': 'החלפת מוצר',
+  'log.addProductOptional': 'הוספת מוצר (לא חובה)',
+  'log.noProductOptional': 'אין מוצר — זה בסדר',
+  'log.clearProduct': 'הסרת מוצר',
 
   // Routine
   'routine.title': 'שגרה',
@@ -598,6 +635,22 @@ const he: Record<string, string> = {
   'routine.buildWithAi': 'בניית היום עם AI',
   'routine.buildingWithAi': 'בונה עם AI…',
   'routine.aiSuggests': 'הצעת AI',
+  'routine.morningRoutines': 'שגרות בוקר',
+  'routine.eveningRoutines': 'שגרות ערב',
+  'routine.addMorningRoutine': 'הוספת שגרת בוקר',
+  'routine.addEveningRoutine': 'הוספת שגרת ערב',
+  'routine.addFullDayRoutine': 'הוספת שגרת יום מלא',
+  'routine.fullDayBadge': 'יום מלא',
+  'routine.editRoutine': 'עריכת שגרה',
+  'routine.deleteRoutine': 'מחיקת שגרה',
+  'routine.routineName': 'שם השגרה',
+  'routine.newMorningName': 'שגרת בוקר חדשה',
+  'routine.newEveningName': 'שגרת ערב חדשה',
+  'routine.addEveningSide': 'הוספת ערב לשגרה הזו',
+  'routine.addMorningSide': 'הוספת בוקר לשגרה הזו',
+  'routine.noProductYet': 'עדיין אין מוצר',
+  'routine.noMorningYet': 'עדיין אין שגרת בוקר',
+  'routine.noEveningYet': 'עדיין אין שגרת ערב',
 
   // Shopping
   'shop.title': 'קניות',
@@ -610,6 +663,7 @@ const he: Record<string, string> = {
   'shop.showAll': 'הצג הכל',
   'shop.noItems': 'אין פריטים בקטגוריה זו',
   'shop.bought': 'נקנה',
+  'shop.buy': 'לקנייה',
 
   // Insights
   'insights.title': 'תובנות',

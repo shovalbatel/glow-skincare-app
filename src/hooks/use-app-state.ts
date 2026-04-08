@@ -86,9 +86,9 @@ export function useAppState() {
   );
 
   const doUpdateRoutine = useCallback(
-    async (days: RoutineDay[], cycleLength: number) => {
+    async (days: RoutineDay[]) => {
       if (!user) return;
-      await storeUpdateRoutineDays(user.id, days, cycleLength);
+      await storeUpdateRoutineDays(user.id, days);
       await refresh();
     },
     [user, refresh]
@@ -96,6 +96,7 @@ export function useAppState() {
 
   return {
     state,
+    refresh,
     addProduct: doAddProduct,
     updateProduct: doUpdateProduct,
     deleteProduct: doDeleteProduct,

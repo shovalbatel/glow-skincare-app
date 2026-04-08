@@ -44,6 +44,7 @@ export interface Product {
   status: ProductStatus;
   isActive: boolean;
   notes: string;
+  purchaseUrl: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -68,9 +69,18 @@ export interface RoutineStep {
   productIds: string[]; // products used in this step
 }
 
+/**
+ * A routine the user has built. Either step list may be empty:
+ *   - amSteps populated, pmSteps empty  → morning-only routine
+ *   - pmSteps populated, amSteps empty  → evening-only routine
+ *   - both populated                    → full-day routine (shows in both lists)
+ *
+ * The legacy name "RoutineDay" is preserved (and the DB column `day_number`
+ * is unused) so existing data and DB callers keep working without migration.
+ */
 export interface RoutineDay {
   id: string;
-  dayNumber: number; // 1-based position in cycle
+  dayNumber: number; // legacy; no longer meaningful
   name: string; // e.g. "Retinol Night"
   amSteps: RoutineStep[];
   pmSteps: RoutineStep[];
@@ -81,6 +91,8 @@ export interface RoutineDay {
   amProducts: string[];
   pmProducts: string[];
 }
+
+export type Routine = RoutineDay;
 
 export interface AppState {
   products: Product[];

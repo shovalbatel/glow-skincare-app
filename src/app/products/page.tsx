@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Plus, Search, Sun, Moon, SunMoon, Pencil, Trash2 } from 'lucide-react';
 import { ProductForm, SmartAddSheet } from '@/components/product-add-flow';
 import {
@@ -122,17 +122,9 @@ export default function ProductsPage() {
                   </div>
                 </div>
                 <div className="flex gap-1 ms-2">
-                  <Sheet>
-                    <SheetTrigger render={<Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-stone-400" />} onClick={() => setEditingProduct(p)}>
-                      <Pencil className="w-3.5 h-3.5" />
-                    </SheetTrigger>
-                    <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
-                      <SheetHeader><SheetTitle className="text-stone-700">{t('products.edit')}</SheetTitle></SheetHeader>
-                      {editingProduct && (
-                        <ProductForm product={editingProduct} onSave={(data) => updateProduct(editingProduct.id, data)} onClose={() => setEditingProduct(null)} />
-                      )}
-                    </SheetContent>
-                  </Sheet>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-stone-400" onClick={() => setEditingProduct(p)} aria-label={t('products.edit')}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
                   <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-stone-400 hover:text-rose-500" onClick={() => deleteProduct(p.id)}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
@@ -145,6 +137,30 @@ export default function ProductsPage() {
           <div className="text-center py-12"><p className="text-sm text-stone-400">{t('products.none')}</p></div>
         )}
       </div>
+
+      {/* Edit product sheet — controlled so it closes when editingProduct is cleared */}
+      <Sheet
+        open={!!editingProduct}
+        onOpenChange={(open) => {
+          if (!open) setEditingProduct(null);
+        }}
+      >
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="text-stone-700">{t('products.edit')}</SheetTitle>
+          </SheetHeader>
+          {editingProduct && (
+            <ProductForm
+              product={editingProduct}
+              onSave={async (data) => {
+                await updateProduct(editingProduct.id, data);
+                setEditingProduct(null);
+              }}
+              onClose={() => setEditingProduct(null)}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </AppShell>
   );
 }

@@ -17,6 +17,7 @@ Rules:
 - For routineTime, infer from the product type (sunscreen=am, retinol=pm, moisturizer=both, etc.)
 - Keep description short and focused on skin benefits
 - If you can't determine a field, use a reasonable default
+- The source page may be in any language (English, Hebrew, Russian, Arabic, etc.). Extract the product details and translate the values to English. Keep the brand name in its original Latin form when possible.
 - Return ONLY the JSON object, no markdown fences, no explanation`;
 
 const ENRICH_PROMPT = `You are a skincare expert. You will receive a partially-filled JSON for a skincare product. Use ONLY your existing knowledge of the brand and product to refine the JSON. Improve the description (one short sentence about what it does), set the most likely category from the allowed values, set routineTime, and frequency. Keep the same JSON shape and keys. If you do NOT actually know this product, return the input UNCHANGED. Do not invent details.
@@ -234,6 +235,7 @@ export async function POST(request: NextRequest) {
     }
 
     let text: string;
+    let urlStructured: { title: string; description: string; brand: string; image: string } | null = null;
 
     if (image) {
       const base64Match = image.match(/^data:(.+?);base64,(.+)$/);
@@ -260,7 +262,33 @@ export async function POST(request: NextRequest) {
           },
           signal: AbortSignal.timeout(12000),
         });
-        const html = await res.text();
+        // Decode using the charset from the response header (some Hebrew/legacy
+        // sites still use windows-1255 / iso-8859-8 instead of UTF-8). Falling
+        // back to res.text() would mojibake those pages and the LLM would not
+        // be able to extract anything.
+        const buf = new Uint8Array(await res.arrayBuffer());
+        const ctype = res.headers.get('content-type') || '';
+        let charset = (ctype.match(/charset=([^;]+)/i)?.[1] || '').toLowerCase().trim();
+        let html: string;
+        try {
+          html = new TextDecoder(charset || 'utf-8').decode(buf);
+        } catch {
+          html = new TextDecoder('utf-8').decode(buf);
+          charset = 'utf-8';
+        }
+        // Some sites omit the charset header but declare it via <meta>; if we
+        // didn't find one above, sniff the first few KB and re-decode.
+        if (!charset) {
+          const sniff = new TextDecoder('utf-8').decode(buf.slice(0, 2048));
+          const m = sniff.match(/<meta[^>]+charset=["']?([\w-]+)/i);
+          if (m && m[1].toLowerCase() !== 'utf-8') {
+            try {
+              html = new TextDecoder(m[1].toLowerCase()).decode(buf);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
         structured = extractStructuredFromHtml(html);
         pageText = html
           .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
@@ -274,6 +302,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Could not fetch the URL' }, { status: 400 });
       }
 
+      urlStructured = structured;
       const structuredBlock =
         structured.title || structured.description || structured.brand
           ? `Structured metadata extracted from the page:\nTitle: ${structured.title}\nBrand: ${structured.brand}\nDescription: ${structured.description}\n\n`
@@ -286,6 +315,30 @@ export async function POST(request: NextRequest) {
     }
 
     let extracted = parseJson(text);
+
+    // Fallback path for URL extraction: if the LLM failed to return JSON or
+    // the page is in a language the model handled poorly (e.g. Hebrew), build
+    // a minimal record from the structured metadata so the user can edit it
+    // instead of seeing a hard error.
+    if ((!extracted || !extracted.name) && urlStructured && (urlStructured.title || urlStructured.brand)) {
+      const fallback: ExtractedJson = extracted || {};
+      const title = urlStructured.title.trim();
+      const brand = urlStructured.brand.trim();
+      // If the title leads with the brand, strip it from the name.
+      const name =
+        brand && title.toLowerCase().startsWith(brand.toLowerCase())
+          ? title.slice(brand.length).replace(/^[\s\-–|:•]+/, '').trim()
+          : title;
+      fallback.name ||= name || title || 'Product';
+      fallback.brand ||= brand || '';
+      fallback.description ||= urlStructured.description || '';
+      fallback.category ||= 'serum';
+      fallback.routineTime ||= 'both';
+      fallback.frequency ||= 'daily';
+      fallback.notes ||= '';
+      extracted = fallback;
+    }
+
     if (!extracted) {
       return NextResponse.json({ error: 'Could not parse product data' }, { status: 500 });
     }
@@ -296,7 +349,12 @@ export async function POST(request: NextRequest) {
 
     extracted = await enrichExtraction(extracted);
 
-    return NextResponse.json(extracted);
+    // For URL-based extraction, surface the source URL as a buy link the user
+    // can use later from the shop page.
+    const response: ExtractedJson & { purchaseUrl?: string } = { ...extracted };
+    if (url) response.purchaseUrl = url;
+
+    return NextResponse.json(response);
   } catch (error: unknown) {
     console.error('[extract-product] error:', error);
     const message = error instanceof Error ? error.message : 'Extraction failed';

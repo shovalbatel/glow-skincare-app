@@ -4,15 +4,14 @@ import { useState } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAppState } from '@/hooks/use-app-state';
-import { getTodayRoutineDay, getProductById, getLogByDate } from '@/lib/store';
-import { format } from 'date-fns';
+import { getProductById } from '@/lib/store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   Select,
   SelectContent,
@@ -24,7 +23,6 @@ import {
   Sun,
   Moon,
   Pencil,
-  CalendarDays,
   Sparkles,
   Plus,
   Trash2,
@@ -40,23 +38,26 @@ function newStepId() {
   return `step_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function newRoutineId() {
+  return `rd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+}
+
+type EditMode = 'am' | 'pm' | 'both';
+
 export default function RoutinePage() {
   const { state, updateRoutine, addProduct } = useAppState();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const { t } = useLocale();
-  const [editingDay, setEditingDay] = useState<RoutineDay | null>(null);
+  const [editing, setEditing] = useState<RoutineDay | null>(null);
   const [editName, setEditName] = useState('');
   const [editAmSteps, setEditAmSteps] = useState<RoutineStep[]>([]);
   const [editPmSteps, setEditPmSteps] = useState<RoutineStep[]>([]);
-  // Which step is currently being assigned a freshly added product (so we can
-  // attach the new product to that step on return from SmartAddSheet).
+  const [editMode, setEditMode] = useState<EditMode>('am');
+  // Which step is currently being assigned a freshly added product
   const [pendingAddStep, setPendingAddStep] = useState<{ time: 'am' | 'pm'; stepId: string } | null>(
     null
   );
-  // Per-step AI hint shown when the AI suggested a step but the user has no
-  // product for it. Keyed by step id, only displayed while the step has no
-  // products assigned, so it disappears naturally as soon as the user picks
-  // or adds one. Cleared when the editor opens on a different day.
+  // AI hints per step (from build-with-AI), keyed by step id
   const [aiHints, setAiHints] = useState<Record<string, { name: string; reason: string }>>({});
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -70,31 +71,35 @@ export default function RoutinePage() {
       </AppShell>
     );
 
-  const todayRoutine = getTodayRoutineDay(state);
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const todayLog = getLogByDate(state, today);
-
+  // Suggestions are NOT filtered by routineTime — that's a per-product hint,
+  // not a hard rule. Users can pick any product for any slot.
   const eligibleProducts = state.products.filter(
     (p) => p.status === 'have' || p.status === 'almost_empty'
   );
-  const amProducts = eligibleProducts.filter(
-    (p) => p.routineTime === 'am' || p.routineTime === 'both'
-  );
-  const pmProducts = eligibleProducts.filter(
-    (p) => p.routineTime === 'pm' || p.routineTime === 'both'
-  );
+
+  const morningRoutines = state.routineDays.filter((d) => (d.amSteps?.length ?? 0) > 0);
+  const eveningRoutines = state.routineDays.filter((d) => (d.pmSteps?.length ?? 0) > 0);
 
   const startEdit = (day: RoutineDay) => {
-    setEditingDay(day);
+    setEditing(day);
     setEditName(day.name);
     setEditAmSteps(JSON.parse(JSON.stringify(day.amSteps || [])));
     setEditPmSteps(JSON.parse(JSON.stringify(day.pmSteps || [])));
+    const hasAm = (day.amSteps?.length ?? 0) > 0;
+    const hasPm = (day.pmSteps?.length ?? 0) > 0;
+    setEditMode(hasAm && hasPm ? 'both' : hasPm ? 'pm' : 'am');
+    setAiHints({});
+    setAiError(null);
+  };
+
+  const closeEdit = () => {
+    setEditing(null);
     setAiHints({});
     setAiError(null);
   };
 
   const buildWithAi = async () => {
-    if (!editingDay) return;
+    if (!editing) return;
     setAiLoading(true);
     setAiError(null);
     try {
@@ -102,8 +107,8 @@ export default function RoutinePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          dayName: editName || editingDay.name,
-          dayNumber: editingDay.dayNumber,
+          dayName: editName || editing.name,
+          dayNumber: 1,
           products: eligibleProducts.map((p) => ({
             id: p.id,
             name: p.name,
@@ -140,8 +145,12 @@ export default function RoutinePage() {
           return { id, category: it.category, productIds: it.productIds };
         });
 
-      setEditAmSteps(materialize(data.amSteps || []));
-      setEditPmSteps(materialize(data.pmSteps || []));
+      if (editMode === 'am' || editMode === 'both') {
+        setEditAmSteps(materialize(data.amSteps || []));
+      }
+      if (editMode === 'pm' || editMode === 'both') {
+        setEditPmSteps(materialize(data.pmSteps || []));
+      }
       setAiHints(hints);
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'AI request failed');
@@ -151,21 +160,23 @@ export default function RoutinePage() {
   };
 
   const saveEdit = () => {
-    if (!editingDay) return;
+    if (!editing) return;
+    const finalAm = editMode === 'pm' ? [] : editAmSteps;
+    const finalPm = editMode === 'am' ? [] : editPmSteps;
     const updated = state.routineDays.map((d) =>
-      d.id === editingDay.id
+      d.id === editing.id
         ? {
             ...d,
-            name: editName,
-            amSteps: editAmSteps,
-            pmSteps: editPmSteps,
-            amProducts: editAmSteps.flatMap((s) => s.productIds),
-            pmProducts: editPmSteps.flatMap((s) => s.productIds),
+            name: editName || d.name,
+            amSteps: finalAm,
+            pmSteps: finalPm,
+            amProducts: finalAm.flatMap((s) => s.productIds),
+            pmProducts: finalPm.flatMap((s) => s.productIds),
           }
         : d
     );
-    updateRoutine(updated, state.cycleLength);
-    setEditingDay(null);
+    updateRoutine(updated);
+    closeEdit();
   };
 
   const addStep = (time: 'am' | 'pm', category: ProductCategory) => {
@@ -201,268 +212,312 @@ export default function RoutinePage() {
     );
   };
 
-  const addNewDay = () => {
-    const nextNumber = state.routineDays.length + 1;
-    const newDay: RoutineDay = {
-      id: `rd_${Date.now()}`,
-      dayNumber: nextNumber,
-      name: `${t('routine.newDayName')} ${nextNumber}`,
-      amSteps: [],
-      pmSteps: [],
+  const createRoutine = (mode: EditMode) => {
+    const baseName =
+      mode === 'pm'
+        ? t('routine.newEveningName')
+        : mode === 'am'
+        ? t('routine.newMorningName')
+        : t('routine.newDayName');
+    const newRoutine: RoutineDay = {
+      id: newRoutineId(),
+      dayNumber: state.routineDays.length + 1,
+      name: baseName,
+      amSteps: mode === 'pm' ? [] : [],
+      pmSteps: mode === 'am' ? [] : [],
       amProducts: [],
       pmProducts: [],
     };
-    const updated = [...state.routineDays, newDay];
-    updateRoutine(updated, updated.length);
-    // Open the editor on the new day immediately
-    setTimeout(() => startEdit(newDay), 100);
+    // Seed with one empty step on the relevant side(s) so the editor isn't
+    // visually empty.
+    if (mode !== 'pm') {
+      newRoutine.amSteps = [{ id: newStepId(), category: 'cleanser', productIds: [] }];
+    }
+    if (mode !== 'am') {
+      newRoutine.pmSteps = [{ id: newStepId(), category: 'cleanser', productIds: [] }];
+    }
+    const updated = [...state.routineDays, newRoutine];
+    updateRoutine(updated);
+    setTimeout(() => startEdit(newRoutine), 100);
   };
 
-  const deleteDay = (day: RoutineDay) => {
+  const deleteRoutine = (day: RoutineDay) => {
     if (!window.confirm(t('routine.confirmDelete'))) return;
-    const remaining = state.routineDays
-      .filter((d) => d.id !== day.id)
-      .map((d, idx) => ({ ...d, dayNumber: idx + 1 }));
-    updateRoutine(remaining, Math.max(remaining.length, 1));
+    const remaining = state.routineDays.filter((d) => d.id !== day.id);
+    updateRoutine(remaining);
+  };
+
+  const renderRoutineCard = (day: RoutineDay, time: 'am' | 'pm') => {
+    const isFullDay = (day.amSteps?.length ?? 0) > 0 && (day.pmSteps?.length ?? 0) > 0;
+    const steps = time === 'am' ? day.amSteps : day.pmSteps;
+    return (
+      <Card key={`${day.id}_${time}`} className="border-rose-100 shadow-sm">
+        <CardContent className="pt-4 pb-3">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-semibold text-stone-700">{day.name}</h3>
+              {isFullDay && (
+                <Badge className="bg-violet-100 text-violet-600 text-[10px]">
+                  {t('routine.fullDayBadge')}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-stone-400"
+                onClick={() => startEdit(day)}
+                aria-label={t('routine.editRoutine')}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-stone-400 hover:text-rose-500"
+                onClick={() => deleteRoutine(day)}
+                aria-label={t('routine.deleteRoutine')}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+          <div>
+            {(steps?.length ?? 0) === 0 ? (
+              <p className="text-[11px] text-stone-400 italic">{t('routine.noSteps')}</p>
+            ) : (
+              steps.map((step) => (
+                <div key={step.id} className="mb-1.5">
+                  <p className="text-[11px] text-stone-500 font-medium">
+                    {t('cat.' + step.category)}
+                  </p>
+                  {step.productIds.length === 0 ? (
+                    <p className="text-[11px] text-stone-300 italic ms-2">
+                      {t('routine.noProductYet')}
+                    </p>
+                  ) : (
+                    step.productIds.map((id) => {
+                      const p = getProductById(state, id);
+                      return p ? (
+                        <p key={id} className="text-xs text-stone-600 ms-2">
+                          • {p.name}
+                        </p>
+                      ) : null;
+                    })
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
     <AppShell>
-      <PageHeader
-        title={t('routine.title')}
-        subtitle={`${state.cycleLength}${t('routine.dayCycle')}`}
-      />
+      <PageHeader title={t('routine.title')} />
 
-      {/* Today highlight */}
-      {todayRoutine && (
-        <div className="px-5 mb-5">
-          <Card className="border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 shadow-sm">
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-rose-500 uppercase tracking-wider">
-                  {t('routine.today')}
-                </span>
-                {todayLog?.amCompleted && todayLog?.pmCompleted ? (
-                  <Badge className="bg-emerald-100 text-emerald-600 text-[10px]">
-                    {t('routine.completed')}
-                  </Badge>
-                ) : (
-                  <Badge className="bg-amber-100 text-amber-600 text-[10px]">
-                    {t('routine.inProgress')}
-                  </Badge>
-                )}
-              </div>
-              <h3 className="text-lg font-semibold text-stone-700">{todayRoutine.name}</h3>
-              <p className="text-xs text-stone-500 mt-1">
-                {t('routine.dayOf')
-                  .replace('{n}', String(todayRoutine.dayNumber))
-                  .replace('{total}', String(state.cycleLength))}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Empty state */}
       {state.routineDays.length === 0 && (
         <div className="px-5 mb-5">
           <Card className="border-rose-100 shadow-sm">
             <CardContent className="pt-8 pb-6 flex flex-col items-center text-center">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center mb-4">
-                <CalendarDays className="w-7 h-7 text-rose-400" />
+                <Sparkles className="w-7 h-7 text-rose-400" />
               </div>
-              <h3 className="text-lg font-semibold text-stone-700 mb-1">{t('routine.noRoutine')}</h3>
+              <h3 className="text-lg font-semibold text-stone-700 mb-1">
+                {t('routine.noRoutine')}
+              </h3>
               <p className="text-sm text-stone-400 mb-5">{t('routine.noRoutineHint')}</p>
-              <Button
-                onClick={addNewDay}
-                className="w-full bg-rose-500 hover:bg-rose-600 text-white rounded-xl h-11 mb-3"
-              >
-                {t('routine.createRoutine')}
-              </Button>
-              <button
-                type="button"
-                onClick={addNewDay}
-                className="flex items-center gap-1.5 text-sm text-rose-500 hover:text-rose-600"
-              >
-                <Sparkles className="w-4 h-4" /> {t('routine.getRecommendations')}
-              </button>
+              <div className="grid grid-cols-1 gap-2 w-full">
+                <Button
+                  onClick={() => createRoutine('am')}
+                  className="w-full bg-rose-500 hover:bg-rose-600 text-white rounded-xl h-11"
+                >
+                  <Sun className="w-4 h-4 me-2" /> {t('routine.addMorningRoutine')}
+                </Button>
+                <Button
+                  onClick={() => createRoutine('pm')}
+                  className="w-full bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl h-11"
+                >
+                  <Moon className="w-4 h-4 me-2" /> {t('routine.addEveningRoutine')}
+                </Button>
+                <Button
+                  onClick={() => createRoutine('both')}
+                  variant="ghost"
+                  className="w-full border border-violet-200 bg-violet-50 text-violet-600 hover:bg-violet-100 rounded-xl h-11"
+                >
+                  {t('routine.addFullDayRoutine')}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Cycle days */}
-      <div className="px-5 space-y-3">
-        {state.routineDays.map((day) => {
-          const isToday = day.id === todayRoutine?.id;
-          return (
-            <Card
-              key={day.id}
-              className={`shadow-sm ${
-                isToday ? 'border-rose-300 ring-1 ring-rose-200' : 'border-rose-100'
-              }`}
-            >
-              <CardContent className="pt-4 pb-3">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
-                          isToday ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-500'
-                        }`}
-                      >
-                        {day.dayNumber}
-                      </div>
-                      <h3 className="text-sm font-semibold text-stone-700">{day.name}</h3>
-                      {isToday && (
-                        <Badge className="bg-rose-100 text-rose-500 text-[10px]">
-                          {t('routine.today')}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Sheet>
-                      <SheetTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-stone-400"
-                          />
-                        }
-                        onClick={() => startEdit(day)}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </SheetTrigger>
-                      <SheetContent
-                        side="bottom"
-                        className="rounded-t-2xl max-h-[85vh] overflow-y-auto"
-                      >
-                        <SheetHeader>
-                          <SheetTitle className="text-stone-700">
-                            {t('routine.editDay').replace('{n}', String(editingDay?.dayNumber))}
-                          </SheetTitle>
-                        </SheetHeader>
-                        <div className="space-y-5 px-1 mt-4">
-                          <div>
-                            <Label className="text-xs text-stone-500">{t('routine.dayName')}</Label>
-                            <Input
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              className="mt-1"
-                            />
-                          </div>
-
-                          {/* Build with AI */}
-                          <div>
-                            <Button
-                              type="button"
-                              onClick={buildWithAi}
-                              disabled={aiLoading}
-                              variant="ghost"
-                              className="w-full border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
-                            >
-                              {aiLoading ? (
-                                <Loader2 className="w-4 h-4 me-2 animate-spin" />
-                              ) : (
-                                <Sparkles className="w-4 h-4 me-2" />
-                              )}
-                              {t(aiLoading ? 'routine.buildingWithAi' : 'routine.buildWithAi')}
-                            </Button>
-                            {aiError && (
-                              <p className="text-xs text-rose-500 mt-1">{aiError}</p>
-                            )}
-                          </div>
-
-                          {/* AM steps */}
-                          <StepEditor
-                            time="am"
-                            steps={editAmSteps}
-                            eligibleProducts={amProducts}
-                            aiHints={aiHints}
-                            onAddStep={(cat) => addStep('am', cat)}
-                            onRemoveStep={(id) => removeStep('am', id)}
-                            onToggleProduct={(stepId, pid) =>
-                              toggleStepProduct('am', stepId, pid)
-                            }
-                            onAddNewProduct={(stepId) => {
-                              setPendingAddStep({ time: 'am', stepId });
-                              setIsAddOpen(true);
-                            }}
-                          />
-
-                          {/* PM steps */}
-                          <StepEditor
-                            time="pm"
-                            steps={editPmSteps}
-                            eligibleProducts={pmProducts}
-                            aiHints={aiHints}
-                            onAddStep={(cat) => addStep('pm', cat)}
-                            onRemoveStep={(id) => removeStep('pm', id)}
-                            onToggleProduct={(stepId, pid) =>
-                              toggleStepProduct('pm', stepId, pid)
-                            }
-                            onAddNewProduct={(stepId) => {
-                              setPendingAddStep({ time: 'pm', stepId });
-                              setIsAddOpen(true);
-                            }}
-                          />
-
-                          <Button
-                            onClick={saveEdit}
-                            className="w-full bg-rose-500 hover:bg-rose-600 text-white"
-                          >
-                            {t('routine.saveChanges')}
-                          </Button>
-                        </div>
-                      </SheetContent>
-                    </Sheet>
-                    {state.routineDays.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-stone-400 hover:text-rose-500"
-                        onClick={() => deleteDay(day)}
-                        aria-label={t('routine.deleteDay')}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <DayStepList
-                    icon={<Sun className="w-3 h-3 text-amber-500" />}
-                    label={t('common.am')}
-                    steps={day.amSteps || []}
-                    state={state}
-                  />
-                  <DayStepList
-                    icon={<Moon className="w-3 h-3 text-indigo-400" />}
-                    label={t('common.pm')}
-                    steps={day.pmSteps || []}
-                    state={state}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
+      {/* Morning section */}
       {state.routineDays.length > 0 && (
-        <div className="px-5 mt-3">
-          <button
-            onClick={addNewDay}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-rose-200 hover:bg-rose-50 transition-colors"
-          >
-            <Plus className="w-4 h-4 text-rose-400" />
-            <span className="text-sm font-medium text-rose-500">{t('routine.addDay')}</span>
-          </button>
+        <div className="px-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Sun className="w-4 h-4 text-amber-500" />
+            <h2 className="text-sm font-semibold text-stone-700 uppercase tracking-wider">
+              {t('routine.morningRoutines')}
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {morningRoutines.length === 0 ? (
+              <p className="text-xs text-stone-400 italic mb-2">{t('routine.noMorningYet')}</p>
+            ) : (
+              morningRoutines.map((d) => renderRoutineCard(d, 'am'))
+            )}
+            <button
+              onClick={() => createRoutine('am')}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-rose-200 hover:bg-rose-50 transition-colors"
+            >
+              <Plus className="w-4 h-4 text-rose-400" />
+              <span className="text-sm font-medium text-rose-500">
+                {t('routine.addMorningRoutine')}
+              </span>
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Evening section */}
+      {state.routineDays.length > 0 && (
+        <div className="px-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Moon className="w-4 h-4 text-indigo-400" />
+            <h2 className="text-sm font-semibold text-stone-700 uppercase tracking-wider">
+              {t('routine.eveningRoutines')}
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {eveningRoutines.length === 0 ? (
+              <p className="text-xs text-stone-400 italic mb-2">{t('routine.noEveningYet')}</p>
+            ) : (
+              eveningRoutines.map((d) => renderRoutineCard(d, 'pm'))
+            )}
+            <button
+              onClick={() => createRoutine('pm')}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-indigo-200 hover:bg-indigo-50 transition-colors"
+            >
+              <Plus className="w-4 h-4 text-indigo-400" />
+              <span className="text-sm font-medium text-indigo-500">
+                {t('routine.addEveningRoutine')}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit sheet (controlled) */}
+      <Sheet
+        open={!!editing}
+        onOpenChange={(open) => {
+          if (!open) closeEdit();
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="rounded-t-2xl max-h-[90vh] overflow-y-auto"
+        >
+          <SheetHeader>
+            <SheetTitle className="text-stone-700">{t('routine.editRoutine')}</SheetTitle>
+          </SheetHeader>
+          {editing && (
+            <div className="space-y-5 px-1 mt-4">
+              <div>
+                <Label className="text-xs text-stone-500">{t('routine.routineName')}</Label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+
+              {/* Build with AI */}
+              <div>
+                <Button
+                  type="button"
+                  onClick={buildWithAi}
+                  disabled={aiLoading}
+                  variant="ghost"
+                  className="w-full border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                >
+                  {aiLoading ? (
+                    <Loader2 className="w-4 h-4 me-2 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 me-2" />
+                  )}
+                  {t(aiLoading ? 'routine.buildingWithAi' : 'routine.buildWithAi')}
+                </Button>
+                {aiError && <p className="text-xs text-rose-500 mt-1">{aiError}</p>}
+              </div>
+
+              {(editMode === 'am' || editMode === 'both') && (
+                <StepEditor
+                  time="am"
+                  steps={editAmSteps}
+                  eligibleProducts={eligibleProducts}
+                  aiHints={aiHints}
+                  onAddStep={(cat) => addStep('am', cat)}
+                  onRemoveStep={(id) => removeStep('am', id)}
+                  onToggleProduct={(stepId, pid) => toggleStepProduct('am', stepId, pid)}
+                  onAddNewProduct={(stepId) => {
+                    setPendingAddStep({ time: 'am', stepId });
+                    setIsAddOpen(true);
+                  }}
+                />
+              )}
+
+              {(editMode === 'pm' || editMode === 'both') && (
+                <StepEditor
+                  time="pm"
+                  steps={editPmSteps}
+                  eligibleProducts={eligibleProducts}
+                  aiHints={aiHints}
+                  onAddStep={(cat) => addStep('pm', cat)}
+                  onRemoveStep={(id) => removeStep('pm', id)}
+                  onToggleProduct={(stepId, pid) => toggleStepProduct('pm', stepId, pid)}
+                  onAddNewProduct={(stepId) => {
+                    setPendingAddStep({ time: 'pm', stepId });
+                    setIsAddOpen(true);
+                  }}
+                />
+              )}
+
+              {/* Add the other side, if missing */}
+              {editMode === 'am' && (
+                <button
+                  type="button"
+                  onClick={() => setEditMode('both')}
+                  className="w-full text-xs text-indigo-500 hover:text-indigo-600 flex items-center justify-center gap-1.5 py-2"
+                >
+                  <Moon className="w-3 h-3" /> {t('routine.addEveningSide')}
+                </button>
+              )}
+              {editMode === 'pm' && (
+                <button
+                  type="button"
+                  onClick={() => setEditMode('both')}
+                  className="w-full text-xs text-amber-500 hover:text-amber-600 flex items-center justify-center gap-1.5 py-2"
+                >
+                  <Sun className="w-3 h-3" /> {t('routine.addMorningSide')}
+                </button>
+              )}
+
+              <Button
+                onClick={saveEdit}
+                className="w-full bg-rose-500 hover:bg-rose-600 text-white"
+              >
+                {t('routine.saveChanges')}
+              </Button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <SmartAddSheet
         open={isAddOpen}
@@ -609,45 +664,6 @@ function StepEditor({
           <Plus className="w-3 h-3 me-1" /> {t('routine.addStep')}
         </Button>
       </div>
-    </div>
-  );
-}
-
-function DayStepList({
-  icon,
-  label,
-  steps,
-  state,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  steps: RoutineStep[];
-  state: ReturnType<typeof useAppState>['state'];
-}) {
-  const { t } = useLocale();
-  return (
-    <div>
-      <div className="flex items-center gap-1 mb-1.5">
-        {icon}
-        <span className="text-[10px] font-medium text-stone-500 uppercase">{label}</span>
-      </div>
-      {steps.length === 0 ? (
-        <p className="text-[11px] text-stone-400 italic">{t('routine.noSteps')}</p>
-      ) : (
-        steps.map((step) => (
-          <div key={step.id} className="mb-1.5">
-            <p className="text-[11px] text-stone-500 font-medium">{t('cat.' + step.category)}</p>
-            {step.productIds.map((id) => {
-              const p = state ? getProductById(state, id) : null;
-              return p ? (
-                <p key={id} className="text-xs text-stone-600 ms-2">
-                  • {p.name}
-                </p>
-              ) : null;
-            })}
-          </div>
-        ))
-      )}
     </div>
   );
 }

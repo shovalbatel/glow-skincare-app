@@ -1175,6 +1175,7 @@ function StepOtherProducts({
         description: p.description || '',
         frequency: '',
         notes: '',
+        purchaseUrl: '',
       };
       await storeAddProduct(userId, prodData);
       setOtherProducts((prev) => [...prev, prodData]);

@@ -4,7 +4,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAppState } from '@/hooks/use-app-state';
-import { getLogByDate, getTodayRoutineDay, getProductById } from '@/lib/store';
+import {
+  getLogByDate,
+  getRoutinesForTime,
+  getSuggestedRoutine,
+  writeLastUsedRoutineId,
+} from '@/lib/store';
 import { format, subDays, addDays } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,11 +29,14 @@ import {
   Moon,
   Save,
   CheckCircle2,
-  SkipForward,
   Plus,
+  Pencil,
+  X,
 } from 'lucide-react';
 import {
+  Product,
   ProductCategory,
+  RoutineDay,
   RoutineStep,
   SkinCondition,
   SkinFeeling,
@@ -46,10 +54,10 @@ const ALL_CATEGORIES = Object.keys(CATEGORY_LABELS) as ProductCategory[];
 interface LoggedStep {
   id: string;
   category: ProductCategory;
-  /** Product the user actually used in this step. null = skipped. */
+  /** Product the user used. Optional — a step can be marked done without one. */
   productId: string | null;
-  /** True once the user has acted on this step (done or skipped). */
-  resolved: boolean;
+  /** True once the user has tapped to mark this step done. */
+  done: boolean;
 }
 
 function newStepId() {
@@ -62,24 +70,8 @@ function stepsFromRoutine(routineSteps: RoutineStep[] | undefined): LoggedStep[]
     id: newStepId(),
     category: s.category,
     productId: s.productIds[0] ?? null,
-    resolved: false,
+    done: false,
   }));
-}
-
-function stepsFromFlatProducts(
-  productIds: string[],
-  productById: (id: string) => { category: ProductCategory } | undefined
-): LoggedStep[] {
-  const seen = new Set<ProductCategory>();
-  const steps: LoggedStep[] = [];
-  for (const id of productIds) {
-    const p = productById(id);
-    const cat = (p?.category || 'serum') as ProductCategory;
-    if (seen.has(cat)) continue;
-    seen.add(cat);
-    steps.push({ id: newStepId(), category: cat, productId: id, resolved: false });
-  }
-  return steps;
 }
 
 export default function LogPage() {
@@ -88,49 +80,69 @@ export default function LogPage() {
   const [addForStep, setAddForStep] = useState<{ time: 'am' | 'pm'; stepId: string } | null>(null);
   const { t } = useLocale();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [amCompleted, setAmCompleted] = useState(false);
-  const [pmCompleted, setPmCompleted] = useState(false);
+
+  const [amRoutineId, setAmRoutineId] = useState<string | null>(null);
+  const [pmRoutineId, setPmRoutineId] = useState<string | null>(null);
   const [amSteps, setAmSteps] = useState<LoggedStep[]>([]);
   const [pmSteps, setPmSteps] = useState<LoggedStep[]>([]);
+
   const [skinFeeling, setSkinFeeling] = useState<SkinFeeling>(3);
   const [skinConditions, setSkinConditions] = useState<SkinCondition[]>([]);
   const [notes, setNotes] = useState('');
   const [saved, setSaved] = useState(false);
 
-  // Initialize steps from today's routine day, falling back to existing log if any.
+  // Initialize from existing log + suggested routines whenever date or state
+  // changes.
   useEffect(() => {
     if (!state) return;
     const log = getLogByDate(state, selectedDate);
-    const routineDay = getTodayRoutineDay(state);
+    const amSuggest = getSuggestedRoutine(state, 'am');
+    const pmSuggest = getSuggestedRoutine(state, 'pm');
+
+    setAmRoutineId(amSuggest?.id ?? null);
+    setPmRoutineId(pmSuggest?.id ?? null);
+
+    const amBase = stepsFromRoutine(amSuggest?.amSteps);
+    const pmBase = stepsFromRoutine(pmSuggest?.pmSteps);
 
     if (log) {
-      // Build editable step list from existing log + routine.
+      // Mark steps as done if their product matches one in the log; also seed
+      // from log products if there are no routine steps.
       const productById = (id: string) => state.products.find((p) => p.id === id);
-      const baseAm = routineDay?.amSteps?.length
-        ? stepsFromRoutine(routineDay.amSteps)
-        : stepsFromFlatProducts(log.amProducts, productById);
-      const basePm = routineDay?.pmSteps?.length
-        ? stepsFromRoutine(routineDay.pmSteps)
-        : stepsFromFlatProducts(log.pmProducts, productById);
-      // Mark logged products as resolved
-      const markUsed = (steps: LoggedStep[], usedIds: string[]) =>
-        steps.map((s) => {
-          const matchInStep = usedIds.find((id) => productById(id)?.category === s.category);
-          if (matchInStep) return { ...s, productId: matchInStep, resolved: true };
+      const markUsed = (steps: LoggedStep[], usedIds: string[]): LoggedStep[] => {
+        const matched = new Set<string>();
+        const next = steps.map((s) => {
+          const match = usedIds.find(
+            (id) => !matched.has(id) && productById(id)?.category === s.category
+          );
+          if (match) {
+            matched.add(match);
+            return { ...s, productId: match, done: true };
+          }
           return s;
         });
-      setAmSteps(markUsed(baseAm, log.amProducts));
-      setPmSteps(markUsed(basePm, log.pmProducts));
-      setAmCompleted(log.amCompleted);
-      setPmCompleted(log.pmCompleted);
+        // Any leftover logged products that didn't fit a routine step → add as
+        // extra logged steps so they're visible.
+        for (const id of usedIds) {
+          if (matched.has(id)) continue;
+          const p = productById(id);
+          next.push({
+            id: newStepId(),
+            category: (p?.category || 'serum') as ProductCategory,
+            productId: id,
+            done: true,
+          });
+        }
+        return next;
+      };
+      setAmSteps(markUsed(amBase, log.amProducts));
+      setPmSteps(markUsed(pmBase, log.pmProducts));
       setSkinFeeling(log.skinFeeling);
       setSkinConditions(log.skinConditions);
       setNotes(log.notes);
     } else {
-      setAmSteps(stepsFromRoutine(routineDay?.amSteps));
-      setPmSteps(stepsFromRoutine(routineDay?.pmSteps));
-      setAmCompleted(false);
-      setPmCompleted(false);
+      setAmSteps(amBase);
+      setPmSteps(pmBase);
       setSkinFeeling(3);
       setSkinConditions([]);
       setNotes('');
@@ -147,9 +159,24 @@ export default function LogPage() {
       </AppShell>
     );
 
-  const allEligible = state.products.filter((p) => p.isActive || p.status === 'have');
-  const amEligible = allEligible.filter((p) => p.routineTime === 'am' || p.routineTime === 'both');
-  const pmEligible = allEligible.filter((p) => p.routineTime === 'pm' || p.routineTime === 'both');
+  const morningRoutines = getRoutinesForTime(state, 'am');
+  const eveningRoutines = getRoutinesForTime(state, 'pm');
+
+  // No filter by AM/PM — products are unconstrained at log time.
+  const allProducts = state.products;
+
+  const switchRoutine = (time: 'am' | 'pm', id: string) => {
+    const routine = state.routineDays.find((d) => d.id === id);
+    if (!routine) return;
+    if (time === 'am') {
+      setAmRoutineId(id);
+      setAmSteps(stepsFromRoutine(routine.amSteps));
+    } else {
+      setPmRoutineId(id);
+      setPmSteps(stepsFromRoutine(routine.pmSteps));
+    }
+    setSaved(false);
+  };
 
   const toggleCondition = (c: SkinCondition) => {
     setSkinConditions((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
@@ -170,7 +197,7 @@ export default function LogPage() {
     const setter = time === 'am' ? setAmSteps : setPmSteps;
     setter((prev) => [
       ...prev,
-      { id: newStepId(), category, productId: null, resolved: false },
+      { id: newStepId(), category, productId: null, done: false },
     ]);
   };
 
@@ -181,21 +208,30 @@ export default function LogPage() {
 
   const handleSave = () => {
     const amProducts = amSteps
-      .filter((s) => s.resolved && s.productId)
+      .filter((s) => s.done && s.productId)
       .map((s) => s.productId!) as string[];
     const pmProducts = pmSteps
-      .filter((s) => s.resolved && s.productId)
+      .filter((s) => s.done && s.productId)
       .map((s) => s.productId!) as string[];
+    const amDone = amSteps.length > 0 && amSteps.every((s) => s.done);
+    const pmDone = pmSteps.length > 0 && pmSteps.every((s) => s.done);
     saveLog({
       date: selectedDate,
-      amCompleted,
-      pmCompleted,
+      amCompleted: amDone,
+      pmCompleted: pmDone,
       amProducts,
       pmProducts,
       skinFeeling,
       skinConditions,
       notes,
     });
+    // Remember which routine was just used so it's the suggestion next time.
+    if (amRoutineId && amSteps.some((s) => s.done)) {
+      writeLastUsedRoutineId('am', amRoutineId);
+    }
+    if (pmRoutineId && pmSteps.some((s) => s.done)) {
+      writeLastUsedRoutineId('pm', pmRoutineId);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -212,12 +248,7 @@ export default function LogPage() {
       {/* Date picker */}
       <div className="px-5 mb-5">
         <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => goDay(-1)}
-            className="text-stone-400"
-          >
+          <Button variant="ghost" size="sm" onClick={() => goDay(-1)} className="text-stone-400">
             <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
           </Button>
           <div className="text-center">
@@ -228,12 +259,7 @@ export default function LogPage() {
               {format(new Date(selectedDate), 'MMMM d, yyyy')}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => goDay(1)}
-            className="text-stone-400"
-          >
+          <Button variant="ghost" size="sm" onClick={() => goDay(1)} className="text-stone-400">
             <ChevronRight className="w-4 h-4 rtl:rotate-180" />
           </Button>
         </div>
@@ -241,19 +267,15 @@ export default function LogPage() {
 
       {/* AM section */}
       <div className="px-5 mb-5">
-        <SectionHeader
+        <RoutineSection
+          time="am"
           icon={<Sun className="w-4 h-4 text-amber-500" />}
           label={t('log.amSection')}
-          completed={amCompleted}
-          onToggleCompleted={() => {
-            setAmCompleted(!amCompleted);
-            setSaved(false);
-          }}
-        />
-        <StepFlow
-          time="am"
+          routines={morningRoutines}
+          selectedRoutineId={amRoutineId}
+          onChangeRoutine={(id) => switchRoutine('am', id)}
           steps={amSteps}
-          eligibleProducts={amEligible}
+          allProducts={allProducts}
           onUpdateStep={(stepId, patch) => updateStep('am', stepId, patch)}
           onAddStep={(cat) => addExtraStep('am', cat)}
           onRemoveStep={(stepId) => removeStep('am', stepId)}
@@ -266,19 +288,15 @@ export default function LogPage() {
 
       {/* PM section */}
       <div className="px-5 mb-5">
-        <SectionHeader
+        <RoutineSection
+          time="pm"
           icon={<Moon className="w-4 h-4 text-indigo-400" />}
           label={t('log.pmSection')}
-          completed={pmCompleted}
-          onToggleCompleted={() => {
-            setPmCompleted(!pmCompleted);
-            setSaved(false);
-          }}
-        />
-        <StepFlow
-          time="pm"
+          routines={eveningRoutines}
+          selectedRoutineId={pmRoutineId}
+          onChangeRoutine={(id) => switchRoutine('pm', id)}
           steps={pmSteps}
-          eligibleProducts={pmEligible}
+          allProducts={allProducts}
           onUpdateStep={(stepId, patch) => updateStep('pm', stepId, patch)}
           onAddStep={(cat) => addExtraStep('pm', cat)}
           onRemoveStep={(stepId) => removeStep('pm', stepId)}
@@ -402,7 +420,7 @@ export default function LogPage() {
           if (newId && addForStep) {
             updateStep(addForStep.time, addForStep.stepId, {
               productId: newId,
-              resolved: true,
+              done: true,
             });
           }
           setIsAddOpen(false);
@@ -415,309 +433,314 @@ export default function LogPage() {
 
 // ----------------- helpers -----------------
 
-function SectionHeader({
+function RoutineSection({
+  time,
   icon,
   label,
-  completed,
-  onToggleCompleted,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  completed: boolean;
-  onToggleCompleted: () => void;
-}) {
-  const { t } = useLocale();
-  return (
-    <div className="flex items-center justify-between mb-2">
-      <div className="flex items-center gap-2">
-        {icon}
-        <span className="text-sm font-semibold text-stone-700">{label}</span>
-      </div>
-      <button
-        onClick={onToggleCompleted}
-        className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-colors ${
-          completed
-            ? 'bg-emerald-100 text-emerald-600'
-            : 'bg-stone-100 text-stone-400'
-        }`}
-      >
-        <CheckCircle2 className="w-3 h-3" />
-        {completed ? t('common.done') : t('log.markDone')}
-      </button>
-    </div>
-  );
-}
-
-function StepFlow({
-  time,
+  routines,
+  selectedRoutineId,
+  onChangeRoutine,
   steps,
-  eligibleProducts,
+  allProducts,
   onUpdateStep,
   onAddStep,
   onRemoveStep,
   onAddNewProduct,
 }: {
   time: 'am' | 'pm';
+  icon: React.ReactNode;
+  label: string;
+  routines: RoutineDay[];
+  selectedRoutineId: string | null;
+  onChangeRoutine: (id: string) => void;
   steps: LoggedStep[];
-  eligibleProducts: { id: string; name: string; brand: string; category: ProductCategory }[];
+  allProducts: Product[];
   onUpdateStep: (stepId: string, patch: Partial<LoggedStep>) => void;
   onAddStep: (cat: ProductCategory) => void;
   onRemoveStep: (stepId: string) => void;
   onAddNewProduct: (stepId: string) => void;
 }) {
   const { t } = useLocale();
-  const [addingCat, setAddingCat] = useState<ProductCategory | ''>('');
+  const [adding, setAdding] = useState(false);
+  const [newCat, setNewCat] = useState<ProductCategory | ''>('');
 
-  if (steps.length === 0) {
-    return (
-      <Card className="border-rose-100 shadow-sm">
-        <CardContent className="pt-4 pb-3 text-center">
-          <p className="text-xs text-stone-400 italic mb-3">{t('log.noRoutineYet')}</p>
-          <AddStepRow
-            value={addingCat}
-            setValue={setAddingCat}
-            onAdd={(cat) => {
-              onAddStep(cat);
-              setAddingCat('');
-            }}
-          />
-        </CardContent>
-      </Card>
-    );
-  }
+  const doneCount = steps.filter((s) => s.done).length;
 
   return (
-    <div className="space-y-2">
-      {steps.map((step, idx) => (
-        <LogStepCard
-          key={step.id}
-          index={idx + 1}
-          total={steps.length}
-          step={step}
-          eligibleProducts={eligibleProducts}
-          onSetProduct={(pid) => onUpdateStep(step.id, { productId: pid, resolved: true })}
-          onSkip={() => onUpdateStep(step.id, { productId: null, resolved: true })}
-          onMarkDone={() => onUpdateStep(step.id, { resolved: true })}
-          onUnresolve={() => onUpdateStep(step.id, { resolved: false })}
-          onAddNew={() => onAddNewProduct(step.id)}
-          onRemove={() => onRemoveStep(step.id)}
-        />
-      ))}
-      <Card className="border-dashed border-stone-200 bg-transparent shadow-none">
-        <CardContent className="pt-3 pb-3">
-          <AddStepRow
-            value={addingCat}
-            setValue={setAddingCat}
-            onAdd={(cat) => {
-              onAddStep(cat);
-              setAddingCat('');
-            }}
-          />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function AddStepRow({
-  value,
-  setValue,
-  onAdd,
-}: {
-  value: ProductCategory | '';
-  setValue: (v: ProductCategory | '') => void;
-  onAdd: (cat: ProductCategory) => void;
-}) {
-  const { t } = useLocale();
-  return (
-    <div className="flex items-center gap-2">
-      <Select value={value} onValueChange={(v) => setValue((v ?? '') as ProductCategory | '')}>
-        <SelectTrigger className="h-8 text-xs flex-1">
-          <SelectValue placeholder={t('log.addStep')}>
-            {(v) => (v ? t('cat.' + v) : t('log.addStep'))}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {ALL_CATEGORIES.map((c) => (
-            <SelectItem key={c} value={c}>
-              {t('cat.' + c)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button
-        size="sm"
-        variant="ghost"
-        disabled={!value}
-        onClick={() => value && onAdd(value as ProductCategory)}
-        className="h-8 text-xs text-rose-500"
-      >
-        <Plus className="w-3 h-3 me-1" /> {t('log.addStep')}
-      </Button>
-    </div>
-  );
-}
-
-function LogStepCard({
-  index,
-  total,
-  step,
-  eligibleProducts,
-  onSetProduct,
-  onSkip,
-  onMarkDone,
-  onUnresolve,
-  onAddNew,
-  onRemove,
-}: {
-  index: number;
-  total: number;
-  step: LoggedStep;
-  eligibleProducts: { id: string; name: string; brand: string; category: ProductCategory }[];
-  onSetProduct: (productId: string) => void;
-  onSkip: () => void;
-  onMarkDone: () => void;
-  onUnresolve: () => void;
-  onAddNew: () => void;
-  onRemove: () => void;
-}) {
-  const { t } = useLocale();
-  const [picking, setPicking] = useState(false);
-
-  // Pre-select products that match this step's category, but allow any
-  // eligible product to be picked too (the user might use something else).
-  const matching = useMemo(
-    () => eligibleProducts.filter((p) => p.category === step.category),
-    [eligibleProducts, step.category]
-  );
-  const others = useMemo(
-    () => eligibleProducts.filter((p) => p.category !== step.category),
-    [eligibleProducts, step.category]
-  );
-  const productList = [...matching, ...others];
-
-  const currentProduct = step.productId
-    ? eligibleProducts.find((p) => p.id === step.productId)
-    : null;
-
-  const skipped = step.resolved && !step.productId;
-
-  return (
-    <Card
-      className={`border shadow-sm ${
-        step.resolved
-          ? skipped
-            ? 'border-stone-200 bg-stone-50'
-            : 'border-emerald-200 bg-emerald-50/40'
-          : 'border-rose-100'
-      }`}
-    >
-      <CardContent className="pt-3 pb-3">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider">
-            {t('routine.stepCategory')} {index}/{total}
-          </p>
-          <button
-            type="button"
-            onClick={onRemove}
-            className="text-stone-300 hover:text-rose-500 text-xs"
-            aria-label={t('routine.deleteStep')}
-          >
-            ×
-          </button>
-        </div>
-        <h4 className="text-sm font-semibold text-stone-700">{t('cat.' + step.category)}</h4>
-
-        {currentProduct ? (
-          <p className="text-xs text-stone-600 mt-1">
-            {currentProduct.name}{' '}
-            <span className="text-stone-400">{currentProduct.brand}</span>
-          </p>
-        ) : skipped ? (
-          <p className="text-xs text-stone-400 italic mt-1">{t('log.skipStep')}</p>
-        ) : (
-          <p className="text-xs text-stone-400 italic mt-1">{t('log.pickProduct')}</p>
-        )}
-
-        {!picking ? (
-          <div className="flex flex-wrap gap-2 mt-3">
-            {!step.resolved && currentProduct && (
-              <button
-                onClick={onMarkDone}
-                className="text-[11px] px-3 py-1.5 rounded-full bg-emerald-500 text-white hover:bg-emerald-600"
-              >
-                <CheckCircle2 className="w-3 h-3 inline me-1" />
-                {t('log.markStepDone')}
-              </button>
-            )}
-            <button
-              onClick={() => setPicking(true)}
-              className="text-[11px] px-3 py-1.5 rounded-full bg-stone-100 text-stone-600 hover:bg-stone-200"
-            >
-              {t('log.useDifferent')}
-            </button>
-            {!skipped && (
-              <button
-                onClick={onSkip}
-                className="text-[11px] px-3 py-1.5 rounded-full bg-stone-100 text-stone-500 hover:bg-stone-200"
-              >
-                <SkipForward className="w-3 h-3 inline me-1" />
-                {t('log.skipStep')}
-              </button>
-            )}
-            {step.resolved && (
-              <button
-                onClick={onUnresolve}
-                className="text-[11px] px-3 py-1.5 rounded-full text-stone-400 hover:text-stone-600"
-              >
-                ↺
-              </button>
-            )}
+    <Card className="border-rose-100 shadow-sm">
+      <CardContent className="pt-4 pb-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            {icon}
+            <span className="text-sm font-semibold text-stone-700">{label}</span>
           </div>
-        ) : (
-          <div className="mt-3 space-y-2">
+          {steps.length > 0 && (
+            <span className="text-[11px] text-stone-400">
+              {doneCount}/{steps.length}
+            </span>
+          )}
+        </div>
+
+        {/* Routine picker */}
+        {routines.length > 0 ? (
+          <div className="mb-3">
             <Select
-              value={step.productId ?? ''}
-              onValueChange={(v) => {
-                if (v) {
-                  onSetProduct(v);
-                  setPicking(false);
-                }
-              }}
+              value={selectedRoutineId ?? ''}
+              onValueChange={(v) => v && onChangeRoutine(v)}
             >
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder={t('log.pickProduct')}>
-                  {(v) => {
-                    const p = eligibleProducts.find((x) => x.id === v);
-                    return p ? `${p.name} — ${p.brand}` : t('log.pickProduct');
-                  }}
+              <SelectTrigger className="h-9 text-xs bg-rose-50/40 border-rose-100">
+                <SelectValue
+                  placeholder={time === 'am' ? t('log.pickMorningRoutine') : t('log.pickEveningRoutine')}
+                >
+                  {(v) => routines.find((r) => r.id === v)?.name ?? ''}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {productList.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} — {p.brand}
+                {routines.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex gap-2">
-              <button
-                onClick={onAddNew}
-                className="text-[11px] text-rose-500 hover:text-rose-600 flex items-center gap-1"
-              >
-                <Plus className="w-3 h-3" /> {t('log.addNewProduct')}
-              </button>
-              <button
-                onClick={() => setPicking(false)}
-                className="text-[11px] text-stone-400 hover:text-stone-600 ms-auto"
-              >
-                {t('common.cancel')}
-              </button>
-            </div>
           </div>
+        ) : (
+          <p className="text-xs text-stone-400 italic mb-3">{t('log.noRoutineYet')}</p>
+        )}
+
+        {/* Steps list */}
+        <div className="space-y-2">
+          {steps.length === 0 && routines.length === 0 && (
+            <p className="text-[11px] text-stone-400 italic">{t('log.tapToAddStep')}</p>
+          )}
+          {steps.map((step) => (
+            <LogStepRow
+              key={step.id}
+              step={step}
+              allProducts={allProducts}
+              onToggleDone={() => onUpdateStep(step.id, { done: !step.done })}
+              onSetProduct={(pid) => onUpdateStep(step.id, { productId: pid, done: true })}
+              onClearProduct={() => onUpdateStep(step.id, { productId: null })}
+              onRemove={() => onRemoveStep(step.id)}
+              onAddNew={() => onAddNewProduct(step.id)}
+            />
+          ))}
+        </div>
+
+        {/* Add step */}
+        {adding ? (
+          <div className="flex items-center gap-2 mt-3">
+            <Select value={newCat} onValueChange={(v) => setNewCat((v ?? '') as ProductCategory | '')}>
+              <SelectTrigger className="h-8 text-xs flex-1">
+                <SelectValue placeholder={t('log.addStep')}>
+                  {(v) => (v ? t('cat.' + v) : t('log.addStep'))}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {ALL_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {t('cat.' + c)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={!newCat}
+              onClick={() => {
+                if (!newCat) return;
+                onAddStep(newCat as ProductCategory);
+                setNewCat('');
+                setAdding(false);
+              }}
+              className="h-8 text-xs text-rose-500"
+            >
+              <Plus className="w-3 h-3 me-1" /> {t('common.add')}
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setAdding(false);
+                setNewCat('');
+              }}
+              className="text-stone-400 hover:text-stone-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-stone-200 hover:border-rose-200 hover:bg-rose-50/40 transition-colors text-xs text-stone-500"
+          >
+            <Plus className="w-3 h-3" /> {t('log.addStep')}
+          </button>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function LogStepRow({
+  step,
+  allProducts,
+  onToggleDone,
+  onSetProduct,
+  onClearProduct,
+  onRemove,
+  onAddNew,
+}: {
+  step: LoggedStep;
+  allProducts: Product[];
+  onToggleDone: () => void;
+  onSetProduct: (pid: string) => void;
+  onClearProduct: () => void;
+  onRemove: () => void;
+  onAddNew: () => void;
+}) {
+  const { t } = useLocale();
+  const [picking, setPicking] = useState(false);
+
+  const sortedProducts = useMemo(() => {
+    // Same-category products first; routineTime is just a hint, no filtering.
+    const same = allProducts.filter((p) => p.category === step.category);
+    const others = allProducts.filter((p) => p.category !== step.category);
+    return [...same, ...others];
+  }, [allProducts, step.category]);
+
+  const product = step.productId
+    ? allProducts.find((p) => p.id === step.productId)
+    : null;
+
+  return (
+    <div
+      className={`rounded-xl border p-3 transition-colors ${
+        step.done
+          ? 'border-emerald-200 bg-emerald-50/40'
+          : 'border-stone-200 bg-white'
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        {/* Big checkbox = the primary action */}
+        <button
+          type="button"
+          onClick={onToggleDone}
+          aria-label={t('log.didStep')}
+          className={`mt-0.5 w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-colors ${
+            step.done
+              ? 'bg-emerald-500 text-white'
+              : 'bg-stone-100 text-stone-300 hover:bg-rose-100 hover:text-rose-400'
+          }`}
+        >
+          {step.done && <CheckCircle2 className="w-4 h-4" />}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={onToggleDone}
+            className="text-start w-full"
+          >
+            <p
+              className={`text-sm font-semibold ${
+                step.done ? 'text-stone-500' : 'text-stone-700'
+              }`}
+            >
+              {t('cat.' + step.category)}
+            </p>
+            {product ? (
+              <p className="text-xs text-stone-500 mt-0.5 truncate">
+                {product.name}
+                <span className="text-stone-400"> · {product.brand}</span>
+              </p>
+            ) : (
+              <p className="text-xs text-stone-400 italic mt-0.5">
+                {t('log.noProductOptional')}
+              </p>
+            )}
+          </button>
+
+          {!picking && (
+            <button
+              type="button"
+              onClick={() => setPicking(true)}
+              className="text-[11px] text-rose-500 hover:text-rose-600 mt-1.5 flex items-center gap-1"
+            >
+              <Pencil className="w-3 h-3" />
+              {product ? t('log.changeProduct') : t('log.addProductOptional')}
+            </button>
+          )}
+
+          {picking && (
+            <div className="mt-2 space-y-2">
+              <Select
+                value={step.productId ?? ''}
+                onValueChange={(v) => {
+                  if (v) {
+                    onSetProduct(v);
+                    setPicking(false);
+                  }
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder={t('log.pickProduct')}>
+                    {(v) => {
+                      const p = allProducts.find((x) => x.id === v);
+                      return p ? `${p.name} — ${p.brand}` : t('log.pickProduct');
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {sortedProducts.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} — {p.brand}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={onAddNew}
+                  className="text-[11px] text-rose-500 hover:text-rose-600 flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" /> {t('log.addNewProduct')}
+                </button>
+                {product && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClearProduct();
+                      setPicking(false);
+                    }}
+                    className="text-[11px] text-stone-400 hover:text-stone-600"
+                  >
+                    {t('log.clearProduct')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPicking(false)}
+                  className="text-[11px] text-stone-400 hover:text-stone-600 ms-auto"
+                >
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-stone-300 hover:text-rose-500 -me-1"
+          aria-label={t('routine.deleteStep')}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
   );
 }

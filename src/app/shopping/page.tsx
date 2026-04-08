@@ -8,8 +8,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingBag, AlertTriangle, RotateCcw, XCircle, CheckCircle2 } from 'lucide-react';
-import { ProductStatus, STATUS_COLORS } from '@/lib/types';
+import { ShoppingBag, AlertTriangle, RotateCcw, XCircle, CheckCircle2, ExternalLink } from 'lucide-react';
+import { ProductStatus, STATUS_COLORS, iherbLink } from '@/lib/types';
 import { useLocale } from '@/components/locale-provider';
 
 export default function ShoppingPage() {
@@ -116,6 +116,14 @@ export default function ShoppingPage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 ms-2">
+                  <a
+                    href={p.purchaseUrl?.trim() || iherbLink(`${p.brand} ${p.name}`.trim())}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 text-[10px] h-6 px-2 rounded-md border border-rose-200 text-rose-600 hover:bg-rose-50"
+                  >
+                    <ExternalLink className="w-3 h-3" /> {t('shop.buy')}
+                  </a>
                   {p.status === 'need_to_buy' && (
                     <Button
                       size="sm"
