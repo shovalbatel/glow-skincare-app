@@ -51,8 +51,17 @@ create table routine_days (
   day_number smallint not null,
   name text not null,
   am_products text[] not null default '{}',
-  pm_products text[] not null default '{}'
+  pm_products text[] not null default '{}',
+  -- New: step-based representation. Each entry is
+  -- { id, category, name?, productIds: text[] }
+  am_steps jsonb not null default '[]'::jsonb,
+  pm_steps jsonb not null default '[]'::jsonb
 );
+
+-- Migration for existing tables (idempotent — safe to run on a fresh schema):
+alter table routine_days
+  add column if not exists am_steps jsonb not null default '[]'::jsonb,
+  add column if not exists pm_steps jsonb not null default '[]'::jsonb;
 
 alter table routine_days enable row level security;
 create policy "Users manage own routines" on routine_days

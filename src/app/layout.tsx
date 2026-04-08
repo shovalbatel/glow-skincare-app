@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, DM_Serif_Display, Heebo } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/components/auth-provider";
 import { LocaleProvider } from "@/components/locale-provider";
 import "./globals.css";
@@ -38,6 +39,7 @@ export default function RootLayout({
         <LocaleProvider>
           <AuthProvider>{children}</AuthProvider>
         </LocaleProvider>
+        <Analytics />
       </body>
     </html>
   );

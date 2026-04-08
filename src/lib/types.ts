@@ -61,10 +61,23 @@ export interface DailyLog {
   createdAt: string;
 }
 
+export interface RoutineStep {
+  id: string;
+  category: ProductCategory; // doubles as the step "kind"
+  name?: string; // optional human label override
+  productIds: string[]; // products used in this step
+}
+
 export interface RoutineDay {
   id: string;
   dayNumber: number; // 1-based position in cycle
   name: string; // e.g. "Retinol Night"
+  amSteps: RoutineStep[];
+  pmSteps: RoutineStep[];
+  /**
+   * Flattened product IDs for convenience / legacy callers. Derived from the
+   * step lists when read; written alongside the JSONB step columns when saved.
+   */
   amProducts: string[];
   pmProducts: string[];
 }

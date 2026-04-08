@@ -17,7 +17,7 @@ import {
   uploadFacePhoto,
   saveFacePhotoRecord,
 } from '@/lib/store';
-import { Product, ProductCategory, RoutineDay, SkinGoal, SkinConcern } from '@/lib/types';
+import { Product, ProductCategory, RoutineDay, RoutineStep, SkinGoal, SkinConcern } from '@/lib/types';
 import {
   Sparkles, Sun, Moon, Camera, Loader2, X, Link2,
   ChevronRight, ChevronLeft, UserCircle, ImageIcon, Package,
@@ -84,6 +84,44 @@ interface RoutineProduct {
   product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>;
   stepCategory: ProductCategory;
   time: 'am' | 'pm';
+}
+
+// Build a step list for a given time (am/pm) by walking the onboarding-collected
+// RoutineProducts in order, looking up the matching saved product by name+brand,
+// and grouping consecutive same-category items into one step.
+function buildStepsForTime(
+  savedProducts: Product[],
+  collected: RoutineProduct[],
+  time: 'am' | 'pm'
+): RoutineStep[] {
+  const filtered = collected.filter((rp) => rp.time === time);
+  const stepsByCategory = new Map<ProductCategory, string[]>();
+  for (const rp of filtered) {
+    const found = savedProducts.find(
+      (sp) =>
+        sp.name === rp.product.name &&
+        sp.brand === rp.product.brand &&
+        (sp.routineTime === time || sp.routineTime === 'both')
+    );
+    if (!found) continue;
+    const list = stepsByCategory.get(rp.stepCategory) || [];
+    if (!list.includes(found.id)) list.push(found.id);
+    stepsByCategory.set(rp.stepCategory, list);
+  }
+  // Preserve the order of categories as they were collected
+  const orderedCategories: ProductCategory[] = [];
+  for (const rp of filtered) {
+    if (!orderedCategories.includes(rp.stepCategory)) {
+      orderedCategories.push(rp.stepCategory);
+    }
+  }
+  return orderedCategories
+    .filter((c) => stepsByCategory.has(c))
+    .map((category) => ({
+      id: `step_${category}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      category,
+      productIds: stepsByCategory.get(category)!,
+    }));
 }
 
 // ============ Progress Dots ============
@@ -410,19 +448,19 @@ function InlineProductAdder({
     <div className="space-y-2">
       <div className="flex gap-2">
         <button onClick={() => setMode('photo')}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-rose-200 hover:bg-rose-50 transition-colors">
-          <Camera className="w-4 h-4 text-rose-400" />
-          <span className="text-xs font-medium text-stone-600">{t('add.scanPhoto')}</span>
+          className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-lg border border-rose-200 hover:bg-rose-50 transition-colors">
+          <Camera className="w-5 h-5 text-rose-400" />
+          <span className="text-[11px] font-medium text-stone-600">{t('add.scanShort')}</span>
         </button>
         <button onClick={() => setMode('link')}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-sky-200 hover:bg-sky-50 transition-colors">
-          <Link2 className="w-4 h-4 text-sky-400" />
-          <span className="text-xs font-medium text-stone-600">{t('add.pasteLink')}</span>
+          className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-lg border border-sky-200 hover:bg-sky-50 transition-colors">
+          <Link2 className="w-5 h-5 text-sky-400" />
+          <span className="text-[11px] font-medium text-stone-600">{t('add.linkShort')}</span>
         </button>
         <button onClick={() => setMode('manual')}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-stone-200 hover:bg-stone-50 transition-colors">
-          <Plus className="w-4 h-4 text-stone-400" />
-          <span className="text-xs font-medium text-stone-600">{t('add.manual')}</span>
+          className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-lg border border-stone-200 hover:bg-stone-50 transition-colors">
+          <Plus className="w-5 h-5 text-stone-400" />
+          <span className="text-[11px] font-medium text-stone-600">{t('add.manualShort')}</span>
         </button>
       </div>
     </div>
@@ -1173,17 +1211,22 @@ function StepFacePhotos({
   const { t } = useLocale();
   const [photos, setPhotos] = useState<{ id: string; url: string }[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
     if (photos.length >= 5) return;
     setUploading(true);
+    setPhotoError('');
     try {
       const { storagePath, publicUrl } = await uploadFacePhoto(userId, file);
       await saveFacePhotoRecord(userId, storagePath, publicUrl);
       setPhotos((prev) => [...prev, { id: storagePath, url: URL.createObjectURL(file) }]);
-    } catch { /* silently fail for MVP */ }
-    finally { setUploading(false); }
+    } catch (e: unknown) {
+      console.error('[onboard photos] upload failed', e);
+      const msg = e instanceof Error ? e.message : 'Upload failed';
+      setPhotoError(msg);
+    } finally { setUploading(false); }
   };
 
   return (
@@ -1199,6 +1242,12 @@ function StepFacePhotos({
 
       <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+
+      {photoError && (
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
+          <p className="text-xs text-rose-600">{photoError}</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-3">
         {photos.map((p, i) => (
@@ -1306,38 +1355,36 @@ export default function OnboardPage() {
     const { fetchProducts } = await import('@/lib/store');
     const savedProducts = await fetchProducts(user.id);
 
-    const amIds = savedProducts.filter((p) => p.routineTime === 'am' || p.routineTime === 'both').filter((p) => p.isActive !== false).map((p) => p.id);
-    const pmIds = savedProducts.filter((p) => p.routineTime === 'pm' || p.routineTime === 'both').filter((p) => p.isActive !== false).map((p) => p.id);
+    // Group active routine products by their step category, separately for AM and PM.
+    const amSteps = buildStepsForTime(savedProducts, products, 'am');
+    const pmSteps = buildStepsForTime(savedProducts, products, 'pm');
 
     const days: RoutineDay[] = [];
 
     // Day 1: default daily routine
-    if (amIds.length > 0 || pmIds.length > 0) {
+    if (amSteps.length > 0 || pmSteps.length > 0) {
       days.push({
         id: `rd_${Date.now()}`,
         dayNumber: 1,
         name: 'Daily Routine',
-        amProducts: amIds,
-        pmProducts: pmIds,
+        amSteps,
+        pmSteps,
+        amProducts: amSteps.flatMap((s) => s.productIds),
+        pmProducts: pmSteps.flatMap((s) => s.productIds),
       });
     }
 
-    // Additional day variations from evening builder
+    // Additional day variations from evening builder — same morning, custom evening.
     eveningVariations.forEach((variation, idx) => {
-      const variationPmIds = variation.products
-        .map((vp) => {
-          // Find matching saved product by name
-          const found = savedProducts.find((sp) => sp.name === vp.product.name && sp.routineTime === 'pm');
-          return found?.id;
-        })
-        .filter(Boolean) as string[];
-
+      const variationPmSteps = buildStepsForTime(savedProducts, variation.products, 'pm');
       days.push({
         id: `rd_${Date.now()}_v${idx}`,
         dayNumber: idx + 2,
         name: variation.name,
-        amProducts: amIds, // Same morning routine
-        pmProducts: variationPmIds,
+        amSteps,
+        pmSteps: variationPmSteps,
+        amProducts: amSteps.flatMap((s) => s.productIds),
+        pmProducts: variationPmSteps.flatMap((s) => s.productIds),
       });
     });
 
@@ -1354,8 +1401,21 @@ export default function OnboardPage() {
   // Step 6: Finish
   const handleFinish = useCallback(async () => {
     if (!user) return;
-    await completeOnboarding(user.id);
-    router.push('/');
+    try {
+      await completeOnboarding(user.id);
+    } catch (e) {
+      console.error('[onboard] completeOnboarding failed', e);
+      return;
+    }
+    // Refresh the Supabase session so the proxy middleware sees fresh cookies
+    // when we navigate to '/'.
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      await createClient().auth.refreshSession();
+    } catch (e) {
+      console.warn('[onboard] refreshSession failed', e);
+    }
+    router.replace('/');
   }, [user, router]);
 
   if (!user) return null;
@@ -1366,7 +1426,7 @@ export default function OnboardPage() {
   const totalDots = 7;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-50/50 to-white overflow-x-hidden" style={{ overscrollBehavior: 'contain' }}>
+    <div className="min-h-dvh bg-gradient-to-b from-rose-50/50 to-white overflow-x-hidden">
       {/* Language toggle */}
       <div className="fixed top-4 end-4 z-50 flex gap-1 bg-white rounded-full p-1 shadow-sm border border-rose-100">
         {(['en', 'he'] as Locale[]).map((l) => (

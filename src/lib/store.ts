@@ -1,5 +1,14 @@
 import { createClient } from '@/lib/supabase/client';
-import { AppState, Product, DailyLog, RoutineDay, SkinCondition, SkinFeeling } from './types';
+import {
+  AppState,
+  Product,
+  DailyLog,
+  RoutineDay,
+  RoutineStep,
+  ProductCategory,
+  SkinCondition,
+  SkinFeeling,
+} from './types';
 
 // ---------- Row ↔ Type mappers ----------
 
@@ -35,14 +44,67 @@ function mapDailyLog(row: Record<string, unknown>): DailyLog {
   };
 }
 
-function mapRoutineDay(row: Record<string, unknown>): RoutineDay {
+function isStepArray(v: unknown): v is RoutineStep[] {
+  return Array.isArray(v) && v.every((s) => s && typeof s === 'object' && 'category' in s);
+}
+
+/** Build a single step list out of a flat product array, grouping by the
+ *  product's category. Used for legacy rows that only have am_products /
+ *  pm_products. */
+function legacyFlatToSteps(
+  productIds: string[],
+  productById: Map<string, Product> | null
+): RoutineStep[] {
+  if (!productById) {
+    return productIds.length > 0
+      ? [{ id: 'legacy_serum', category: 'serum', productIds }]
+      : [];
+  }
+  const groups = new Map<ProductCategory, string[]>();
+  for (const id of productIds) {
+    const p = productById.get(id);
+    const cat = (p?.category || 'serum') as ProductCategory;
+    const list = groups.get(cat) || [];
+    list.push(id);
+    groups.set(cat, list);
+  }
+  return Array.from(groups.entries()).map(([category, ids]) => ({
+    id: `legacy_${category}`,
+    category,
+    productIds: ids,
+  }));
+}
+
+function mapRoutineDay(
+  row: Record<string, unknown>,
+  productById: Map<string, Product> | null
+): RoutineDay {
+  const amProducts = (row.am_products as string[]) || [];
+  const pmProducts = (row.pm_products as string[]) || [];
+
+  const rawAmSteps = row.am_steps;
+  const rawPmSteps = row.pm_steps;
+
+  const amSteps: RoutineStep[] = isStepArray(rawAmSteps)
+    ? (rawAmSteps as RoutineStep[])
+    : legacyFlatToSteps(amProducts, productById);
+  const pmSteps: RoutineStep[] = isStepArray(rawPmSteps)
+    ? (rawPmSteps as RoutineStep[])
+    : legacyFlatToSteps(pmProducts, productById);
+
   return {
     id: row.id as string,
     dayNumber: row.day_number as number,
     name: row.name as string,
-    amProducts: (row.am_products as string[]) || [],
-    pmProducts: (row.pm_products as string[]) || [],
+    amSteps,
+    pmSteps,
+    amProducts: amSteps.flatMap((s) => s.productIds),
+    pmProducts: pmSteps.flatMap((s) => s.productIds),
   };
+}
+
+export function flattenStepProducts(steps: RoutineStep[]): string[] {
+  return steps.flatMap((s) => s.productIds);
 }
 
 // ---------- Load full state ----------
@@ -54,13 +116,16 @@ export async function loadState(): Promise<AppState> {
     supabase.from('products').select('*').order('created_at'),
     supabase.from('daily_logs').select('*').order('date', { ascending: false }),
     supabase.from('routine_days').select('*').order('day_number'),
-    supabase.from('user_settings').select('*').limit(1).single(),
+    supabase.from('user_settings').select('*').limit(1).maybeSingle(),
   ]);
 
+  const products = (productsRes.data || []).map(mapProduct);
+  const productById = new Map(products.map((p) => [p.id, p]));
+
   return {
-    products: (productsRes.data || []).map(mapProduct),
+    products,
     dailyLogs: (logsRes.data || []).map(mapDailyLog),
-    routineDays: (routineRes.data || []).map(mapRoutineDay),
+    routineDays: (routineRes.data || []).map((r) => mapRoutineDay(r, productById)),
     cycleLength: settingsRes.data?.cycle_length ?? 4,
   };
 }
@@ -156,22 +221,33 @@ export async function updateRoutineDays(
   await supabase.from('routine_days').delete().eq('user_id', userId);
   if (days.length > 0) {
     await supabase.from('routine_days').insert(
-      days.map((d) => ({
-        id: d.id,
-        user_id: userId,
-        day_number: d.dayNumber,
-        name: d.name,
-        am_products: d.amProducts,
-        pm_products: d.pmProducts,
-      }))
+      days.map((d) => {
+        const amSteps = d.amSteps ?? [];
+        const pmSteps = d.pmSteps ?? [];
+        return {
+          id: d.id,
+          user_id: userId,
+          day_number: d.dayNumber,
+          name: d.name,
+          // Write both representations so legacy code paths still work
+          // until everything is migrated.
+          am_products: flattenStepProducts(amSteps),
+          pm_products: flattenStepProducts(pmSteps),
+          am_steps: amSteps,
+          pm_steps: pmSteps,
+        };
+      })
     );
   }
 
   // Upsert user settings
-  await supabase.from('user_settings').upsert({
-    user_id: userId,
-    cycle_length: cycleLength,
-  });
+  await supabase.from('user_settings').upsert(
+    {
+      user_id: userId,
+      cycle_length: cycleLength,
+    },
+    { onConflict: 'user_id' }
+  );
 }
 
 // ---------- Helpers (operate on in-memory state) ----------
@@ -201,16 +277,19 @@ export async function checkOnboardingStatus(userId: string): Promise<boolean> {
     .from('user_settings')
     .select('onboarding_completed')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
   return data?.onboarding_completed === true;
 }
 
 export async function saveDisclaimerAgreement(userId: string): Promise<void> {
   const supabase = createClient();
-  await supabase.from('user_settings').upsert({
-    user_id: userId,
-    disclaimer_agreed_at: new Date().toISOString(),
-  });
+  await supabase.from('user_settings').upsert(
+    {
+      user_id: userId,
+      disclaimer_agreed_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' }
+  );
 }
 
 export async function saveSkinProfile(
@@ -219,19 +298,29 @@ export async function saveSkinProfile(
   concerns: string[]
 ): Promise<void> {
   const supabase = createClient();
-  await supabase.from('user_settings').upsert({
-    user_id: userId,
-    skin_goals: goals,
-    skin_concerns: concerns,
-  });
+  await supabase.from('user_settings').upsert(
+    {
+      user_id: userId,
+      skin_goals: goals,
+      skin_concerns: concerns,
+    },
+    { onConflict: 'user_id' }
+  );
 }
 
 export async function completeOnboarding(userId: string): Promise<void> {
   const supabase = createClient();
-  await supabase.from('user_settings').upsert({
-    user_id: userId,
-    onboarding_completed: true,
-  });
+  const { error } = await supabase.from('user_settings').upsert(
+    {
+      user_id: userId,
+      onboarding_completed: true,
+    },
+    { onConflict: 'user_id' }
+  );
+  if (error) {
+    console.error('[completeOnboarding] failed:', error);
+    throw error;
+  }
 }
 
 export async function uploadFacePhoto(
@@ -255,11 +344,15 @@ export async function saveFacePhotoRecord(
   publicUrl: string
 ): Promise<void> {
   const supabase = createClient();
-  await supabase.from('face_photos').insert({
+  const { error } = await supabase.from('face_photos').insert({
     user_id: userId,
     storage_path: storagePath,
     public_url: publicUrl,
   });
+  if (error) {
+    console.error('[saveFacePhotoRecord] failed:', error);
+    throw new Error(`Could not save photo record: ${error.message}`);
+  }
 }
 
 export async function fetchProducts(userId: string): Promise<Product[]> {

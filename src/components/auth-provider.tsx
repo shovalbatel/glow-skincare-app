@@ -44,6 +44,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     await supabase.auth.signOut();
     setUser(null);
+    // Hard reload to /login so the proxy middleware sees the cleared cookies
+    // and any in-memory state is reset.
+    window.location.href = '/login';
   };
 
   return (

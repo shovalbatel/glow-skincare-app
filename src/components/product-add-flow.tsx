@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
-  Camera, Link2, FileText, Loader2, Sparkles, ImageIcon, X,
+  Camera, Link2, FileText, Loader2, Sparkles, ImageIcon, X, Wand2,
 } from 'lucide-react';
 import {
   Product,
@@ -22,6 +22,31 @@ import { useLocale } from '@/components/locale-provider';
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_LABELS) as ProductCategory[];
 const ALL_STATUSES = Object.keys(STATUS_LABELS) as ProductStatus[];
+
+// Canonical frequency keys (translation keys live under freq.*)
+const FREQUENCY_PRESETS = [
+  'daily',
+  'every_other_day',
+  '2_3_per_week',
+  'weekly',
+  'as_needed',
+] as const;
+type FrequencyPreset = (typeof FREQUENCY_PRESETS)[number];
+
+// Normalize free-text frequency strings (often coming from the LLM) into a
+// canonical preset key. Returns 'custom' when nothing matches.
+function normalizeFrequency(raw: string | undefined): FrequencyPreset | 'custom' {
+  if (!raw) return 'daily';
+  const v = raw.toLowerCase().trim();
+  if (!v) return 'daily';
+  if (/(^|\b)(daily|every\s*day|once\s*a\s*day|יומי)/.test(v)) return 'daily';
+  if (/(every\s*other\s*day|alternate\s*days|יום\s*כן\s*יום\s*לא)/.test(v)) return 'every_other_day';
+  if (/(2[-–\s]?3\s*(?:x|times)?\s*(?:per|a)?\s*week|פעמיים|שלוש)/.test(v)) return '2_3_per_week';
+  if (/(weekly|once\s*a\s*week|שבועי)/.test(v)) return 'weekly';
+  if (/(as\s*needed|when\s*needed|prn|לפי\s*הצורך)/.test(v)) return 'as_needed';
+  if (FREQUENCY_PRESETS.includes(v as FrequencyPreset)) return v as FrequencyPreset;
+  return 'custom';
+}
 
 export interface ExtractedProduct {
   name: string;
@@ -53,13 +78,52 @@ export function ProductForm({
   const [category, setCategory] = useState<ProductCategory>(src?.category || 'serum');
   const [description, setDescription] = useState(src?.description || '');
   const [routineTime, setRoutineTime] = useState<RoutineTime>(src?.routineTime || 'both');
-  const [frequency, setFrequency] = useState(src?.frequency || '');
+
+  const initialFreqPreset = normalizeFrequency(src?.frequency);
+  const [frequencyPreset, setFrequencyPreset] = useState<FrequencyPreset | 'custom'>(initialFreqPreset);
+  const [frequencyCustom, setFrequencyCustom] = useState(
+    initialFreqPreset === 'custom' ? src?.frequency || '' : ''
+  );
+
   const [status, setStatus] = useState<ProductStatus>(product?.status || 'have');
   const [isActive, setIsActive] = useState(product?.isActive ?? true);
   const [notes, setNotes] = useState(src?.notes || '');
+  const [enriching, setEnriching] = useState(false);
+
+  // Manually trigger LLM/web enrichment for the current name + brand. Only
+  // touches fields the user hasn't filled in.
+  const handleEnrich = async () => {
+    if (!name.trim() || !brand.trim() || enriching) return;
+    setEnriching(true);
+    try {
+      const res = await fetch('/api/extract-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), brand: brand.trim() }),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as ExtractedProduct;
+      if (data.category) setCategory(data.category);
+      if (data.routineTime) setRoutineTime(data.routineTime);
+      if (data.description && !description) setDescription(data.description);
+      if (data.notes && !notes) setNotes(data.notes);
+      if (data.frequency) {
+        const preset = normalizeFrequency(data.frequency);
+        setFrequencyPreset(preset);
+        if (preset === 'custom') setFrequencyCustom(data.frequency);
+      }
+    } catch (e) {
+      console.warn('[ProductForm] enrich failed', e);
+    } finally {
+      setEnriching(false);
+    }
+  };
 
   const handleSubmit = () => {
     if (!name.trim()) return;
+    // Store the canonical preset key (translatable). For 'custom', store the
+    // free-text the user typed.
+    const frequency = frequencyPreset === 'custom' ? frequencyCustom : frequencyPreset;
     onSave({ name, brand, category, description, routineTime, frequency, status, isActive, notes });
     onClose();
   };
@@ -76,11 +140,26 @@ export function ProductForm({
           <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder={t('form.brand')} className="mt-1" />
         </div>
       </div>
+      <button
+        type="button"
+        onClick={handleEnrich}
+        disabled={!name.trim() || !brand.trim() || enriching}
+        className="flex items-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {enriching ? (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        ) : (
+          <Wand2 className="w-3 h-3" />
+        )}
+        {enriching ? t('form.autofilling') : t('form.autofill')}
+      </button>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label className="text-xs text-stone-500">{t('form.category')}</Label>
           <Select value={category} onValueChange={(v) => v && setCategory(v as ProductCategory)}>
-            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="mt-1 w-full">
+              <SelectValue>{(v) => (v ? t('cat.' + v) : '')}</SelectValue>
+            </SelectTrigger>
             <SelectContent>
               {ALL_CATEGORIES.map((c) => (
                 <SelectItem key={c} value={c}>{t('cat.' + c)}</SelectItem>
@@ -91,7 +170,19 @@ export function ProductForm({
         <div>
           <Label className="text-xs text-stone-500">{t('form.when')}</Label>
           <Select value={routineTime} onValueChange={(v) => v && setRoutineTime(v as RoutineTime)}>
-            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="mt-1 w-full">
+              <SelectValue>
+                {(v) =>
+                  v === 'am'
+                    ? t('common.morning')
+                    : v === 'pm'
+                    ? t('common.evening')
+                    : v === 'both'
+                    ? t('common.both')
+                    : ''
+                }
+              </SelectValue>
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="am">{t('common.morning')}</SelectItem>
               <SelectItem value="pm">{t('common.evening')}</SelectItem>
@@ -103,13 +194,36 @@ export function ProductForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label className="text-xs text-stone-500">{t('form.frequency')}</Label>
-          <Input value={frequency} onChange={(e) => setFrequency(e.target.value)} placeholder={t('form.frequencyPlaceholder')} className="mt-1" />
+          <Select
+            value={frequencyPreset}
+            onValueChange={(v) => v && setFrequencyPreset(v as FrequencyPreset | 'custom')}
+          >
+            <SelectTrigger className="mt-1 w-full">
+              <SelectValue>{(v) => (v ? t('freq.' + v) : '')}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {FREQUENCY_PRESETS.map((f) => (
+                <SelectItem key={f} value={f}>{t('freq.' + f)}</SelectItem>
+              ))}
+              <SelectItem value="custom">{t('freq.custom')}</SelectItem>
+            </SelectContent>
+          </Select>
+          {frequencyPreset === 'custom' && (
+            <Input
+              value={frequencyCustom}
+              onChange={(e) => setFrequencyCustom(e.target.value)}
+              placeholder={t('form.frequencyPlaceholder')}
+              className="mt-2"
+            />
+          )}
         </div>
         {!hideStatus && (
           <div>
             <Label className="text-xs text-stone-500">{t('form.status')}</Label>
             <Select value={status} onValueChange={(v) => v && setStatus(v as ProductStatus)}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 w-full">
+                <SelectValue>{(v) => (v ? t('status.' + v) : '')}</SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 {ALL_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>{t('status.' + s)}</SelectItem>

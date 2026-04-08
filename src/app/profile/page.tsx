@@ -55,6 +55,7 @@ export default function ProfilePage() {
 
   const [photos, setPhotos] = useState<Array<{ url: string; date: string }>>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState('');
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -94,11 +95,15 @@ export default function ProfilePage() {
   const handlePhotoUpload = async (file: File) => {
     if (!user) return;
     setUploadingPhoto(true);
+    setPhotoError('');
     try {
       const { storagePath, publicUrl } = await uploadFacePhoto(user.id, file);
       await saveFacePhotoRecord(user.id, storagePath, publicUrl);
       const updated = await fetchFacePhotosWithDates(user.id);
       setPhotos(updated);
+    } catch (e: unknown) {
+      console.error('[profile] photo upload failed', e);
+      setPhotoError(e instanceof Error ? e.message : 'Photo upload failed');
     } finally {
       setUploadingPhoto(false);
     }
@@ -146,6 +151,7 @@ export default function ProfilePage() {
                   alt={fullName}
                   width={80}
                   height={80}
+                  referrerPolicy="no-referrer"
                   className="w-20 h-20 rounded-full object-cover ring-2 ring-rose-100"
                 />
               ) : (
@@ -253,6 +259,12 @@ export default function ProfilePage() {
                 onChange={onPhotoFileChange}
               />
             </div>
+
+            {photoError && (
+              <div className="mb-3 p-2 bg-rose-50 border border-rose-200 rounded-lg">
+                <p className="text-[11px] text-rose-600">{photoError}</p>
+              </div>
+            )}
 
             {photos.length === 0 ? (
               <p className="text-xs text-stone-400 italic text-center py-4">

@@ -53,6 +53,7 @@ export function PageHeader({ title, subtitle, action, showUser = false }: PageHe
               <img
                 src={avatarUrl}
                 alt={name}
+                referrerPolicy="no-referrer"
                 className="w-8 h-8 rounded-full ring-2 ring-rose-200 group-hover:ring-rose-400 transition-all"
               />
             ) : (

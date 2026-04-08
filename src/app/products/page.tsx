@@ -67,14 +67,30 @@ export default function ProductsPage() {
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
           <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v ?? 'all')}>
-            <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs bg-white border-rose-100"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs bg-white border-rose-100">
+              <SelectValue>
+                {(v) => (v === 'all' || !v ? t('products.allStatus') : t('status.' + v))}
+              </SelectValue>
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('products.allStatus')}</SelectItem>
               {ALL_STATUSES.map((s) => (<SelectItem key={s} value={s}>{t('status.' + s)}</SelectItem>))}
             </SelectContent>
           </Select>
           <Select value={filterTime} onValueChange={(v) => setFilterTime(v ?? 'all')}>
-            <SelectTrigger className="w-auto min-w-[100px] h-8 text-xs bg-white border-rose-100"><SelectValue placeholder="Time" /></SelectTrigger>
+            <SelectTrigger className="w-auto min-w-[100px] h-8 text-xs bg-white border-rose-100">
+              <SelectValue>
+                {(v) =>
+                  v === 'all' || !v
+                    ? t('products.allTimes')
+                    : v === 'am'
+                    ? t('common.morning')
+                    : v === 'pm'
+                    ? t('common.evening')
+                    : t('common.both')
+                }
+              </SelectValue>
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('products.allTimes')}</SelectItem>
               <SelectItem value="am">{t('common.morning')}</SelectItem>
@@ -99,7 +115,9 @@ export default function ProductsPage() {
                   <p className="text-xs text-stone-500 mt-1">{p.description}</p>
                   <div className="flex items-center gap-2 mt-2">
                     <Badge className={`text-[10px] ${STATUS_COLORS[p.status]}`}>{t('status.' + p.status)}</Badge>
-                    <span className="text-[10px] text-stone-400">{p.frequency}</span>
+                    <span className="text-[10px] text-stone-400">
+                      {p.frequency && /^[a-z0-9_]+$/.test(p.frequency) ? t('freq.' + p.frequency) : p.frequency}
+                    </span>
                     {!p.isActive && <Badge variant="outline" className="text-[10px] text-stone-400">{t('common.paused')}</Badge>}
                   </div>
                 </div>
