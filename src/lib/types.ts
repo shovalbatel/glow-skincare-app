@@ -45,6 +45,8 @@ export interface Product {
   isActive: boolean;
   notes: string;
   purchaseUrl: string;
+  imageUrl: string;
+  imagePath: string;
   createdAt: string;
   updatedAt: string;
 }

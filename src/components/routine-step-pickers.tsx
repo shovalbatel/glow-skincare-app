@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Sparkles, Loader2, Sun, Moon, SunMoon, CheckCircle2 } from 'lucide-react';
+import { Search, Sparkles, Loader2, Sun, Moon, SunMoon, CheckCircle2, ImageIcon } from 'lucide-react';
 import { Product, ProductCategory } from '@/lib/types';
 import { useLocale } from '@/components/locale-provider';
 
@@ -149,7 +149,7 @@ export function StepProductPicker({
                   {section.items.map((p) => (
                     <label
                       key={p.id}
-                      className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                      className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${
                         selected.includes(p.id)
                           ? 'border-rose-300 bg-rose-50/60'
                           : 'border-stone-200 hover:bg-stone-50'
@@ -159,6 +159,7 @@ export function StepProductPicker({
                         checked={selected.includes(p.id)}
                         onCheckedChange={() => toggle(p.id)}
                       />
+                      <ProductThumb product={p} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-stone-700 truncate">{p.name}</p>
                         <p className="text-[11px] text-stone-400 truncate">
@@ -198,6 +199,26 @@ function RoutineTimeIcon({ time }: { time: 'am' | 'pm' | 'both' }) {
   if (time === 'am') return <Sun className="w-3.5 h-3.5 text-amber-500" />;
   if (time === 'pm') return <Moon className="w-3.5 h-3.5 text-indigo-400" />;
   return <SunMoon className="w-3.5 h-3.5 text-stone-400" />;
+}
+
+export function ProductThumb({
+  product,
+  size = 'sm',
+}: {
+  product: Product;
+  size?: 'sm' | 'md';
+}) {
+  const dim = size === 'sm' ? 'w-9 h-9' : 'w-12 h-12';
+  return (
+    <div className={`${dim} rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center overflow-hidden flex-shrink-0`}>
+      {product.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+      ) : (
+        <ImageIcon className="w-3.5 h-3.5 text-rose-200" />
+      )}
+    </div>
+  );
 }
 
 // ---------- AI suggestion sheet ----------

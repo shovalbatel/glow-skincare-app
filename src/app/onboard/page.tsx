@@ -1176,6 +1176,8 @@ function StepOtherProducts({
         frequency: '',
         notes: '',
         purchaseUrl: '',
+        imageUrl: '',
+        imagePath: '',
       };
       await storeAddProduct(userId, prodData);
       setOtherProducts((prev) => [...prev, prodData]);

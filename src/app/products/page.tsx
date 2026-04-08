@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Plus, Search, Sun, Moon, SunMoon, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Sun, Moon, SunMoon, Pencil, Trash2, ImageIcon } from 'lucide-react';
 import { ProductForm, SmartAddSheet } from '@/components/product-add-flow';
 import {
   Product,
@@ -105,7 +105,15 @@ export default function ProductsPage() {
         {filtered.map((p) => (
           <Card key={p.id} className={`border-rose-100 shadow-sm ${!p.isActive ? 'opacity-60' : ''}`}>
             <CardContent className="pt-3 pb-3">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start gap-3">
+                <div className="w-14 h-14 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {p.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-5 h-5 text-rose-200" />
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     {timeIcon(p.routineTime)}

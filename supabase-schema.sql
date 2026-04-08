@@ -21,6 +21,12 @@ create table products (
 
 -- Migration for existing installs:
 -- alter table products add column if not exists purchase_url text not null default '';
+-- alter table products add column if not exists image_url text not null default '';
+-- alter table products add column if not exists image_path text not null default '';
+
+alter table products
+  add column if not exists image_url text not null default '',
+  add column if not exists image_path text not null default '';
 
 alter table products enable row level security;
 create policy "Users manage own products" on products
@@ -129,5 +135,38 @@ create policy "Users delete own face photos"
   on storage.objects for delete
   using (
     bucket_id = 'face-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- 7. Storage bucket + policies for product-photos
+insert into storage.buckets (id, name, public)
+values ('product-photos', 'product-photos', true)
+on conflict (id) do nothing;
+
+create policy "Users upload own product photos"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'product-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "Users read own product photos"
+  on storage.objects for select
+  using (
+    bucket_id = 'product-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "Users update own product photos"
+  on storage.objects for update
+  using (
+    bucket_id = 'product-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "Users delete own product photos"
+  on storage.objects for delete
+  using (
+    bucket_id = 'product-photos'
     and (storage.foldername(name))[1] = auth.uid()::text
   );

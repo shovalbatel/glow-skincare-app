@@ -25,6 +25,8 @@ function mapProduct(row: Record<string, unknown>): Product {
     isActive: row.is_active as boolean,
     notes: row.notes as string,
     purchaseUrl: (row.purchase_url as string) || '',
+    imageUrl: (row.image_url as string) || '',
+    imagePath: (row.image_path as string) || '',
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -150,6 +152,8 @@ export async function addProduct(
     is_active: product.isActive,
     notes: product.notes,
     purchase_url: product.purchaseUrl || '',
+    image_url: product.imageUrl || '',
+    image_path: product.imagePath || '',
   }).select('id').single();
   return data?.id;
 }
@@ -170,8 +174,31 @@ export async function updateProduct(
   if (updates.isActive !== undefined) row.is_active = updates.isActive;
   if (updates.notes !== undefined) row.notes = updates.notes;
   if (updates.purchaseUrl !== undefined) row.purchase_url = updates.purchaseUrl;
+  if (updates.imageUrl !== undefined) row.image_url = updates.imageUrl;
+  if (updates.imagePath !== undefined) row.image_path = updates.imagePath;
   row.updated_at = new Date().toISOString();
   await supabase.from('products').update(row).eq('id', id);
+}
+
+export async function uploadProductPhoto(
+  userId: string,
+  file: File
+): Promise<{ storagePath: string; publicUrl: string }> {
+  const supabase = createClient();
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`;
+
+  const { error } = await supabase.storage.from('product-photos').upload(path, file);
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('product-photos').getPublicUrl(path);
+  return { storagePath: path, publicUrl: data.publicUrl };
+}
+
+export async function deleteProductPhoto(storagePath: string): Promise<void> {
+  if (!storagePath) return;
+  const supabase = createClient();
+  await supabase.storage.from('product-photos').remove([storagePath]);
 }
 
 export async function deleteProduct(id: string): Promise<void> {

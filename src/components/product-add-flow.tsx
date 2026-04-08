@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
-  Camera, Link2, FileText, Loader2, Sparkles, ImageIcon, X, Wand2,
+  Camera, Link2, FileText, Loader2, Sparkles, ImageIcon, X, Wand2, Trash2,
 } from 'lucide-react';
 import {
   Product,
@@ -19,6 +19,8 @@ import {
   STATUS_LABELS,
 } from '@/lib/types';
 import { useLocale } from '@/components/locale-provider';
+import { useAuth } from '@/components/auth-provider';
+import { uploadProductPhoto, deleteProductPhoto } from '@/lib/store';
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_LABELS) as ProductCategory[];
 const ALL_STATUSES = Object.keys(STATUS_LABELS) as ProductStatus[];
@@ -57,6 +59,8 @@ export interface ExtractedProduct {
   frequency: string;
   notes: string;
   purchaseUrl?: string;
+  imageUrl?: string;
+  imagePath?: string;
 }
 
 export function ProductForm({
@@ -73,7 +77,13 @@ export function ProductForm({
   hideStatus?: boolean;
 }) {
   const { t } = useLocale();
+  const { user } = useAuth();
   const src = product || initial;
+  const [imageUrl, setImageUrl] = useState(product?.imageUrl ?? initial?.imageUrl ?? '');
+  const [imagePath, setImagePath] = useState(product?.imagePath ?? initial?.imagePath ?? '');
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(src?.name || '');
   const [brand, setBrand] = useState(src?.brand || '');
   const [category, setCategory] = useState<ProductCategory>(src?.category || 'serum');
@@ -123,17 +133,108 @@ export function ProductForm({
     }
   };
 
+  const handlePhotoFile = async (file: File) => {
+    if (!user) {
+      setPhotoError('Not signed in');
+      return;
+    }
+    setPhotoUploading(true);
+    setPhotoError('');
+    try {
+      // If replacing, drop the old object so we don't pile up orphans.
+      const oldPath = imagePath;
+      const { storagePath, publicUrl } = await uploadProductPhoto(user.id, file);
+      setImagePath(storagePath);
+      setImageUrl(publicUrl);
+      if (oldPath && oldPath !== storagePath) {
+        deleteProductPhoto(oldPath).catch((e) => console.warn('[ProductForm] cleanup failed', e));
+      }
+    } catch (e: unknown) {
+      console.error('[ProductForm] photo upload failed', e);
+      setPhotoError(e instanceof Error ? e.message : 'Photo upload failed');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    const oldPath = imagePath;
+    setImageUrl('');
+    setImagePath('');
+    if (oldPath) {
+      deleteProductPhoto(oldPath).catch((e) => console.warn('[ProductForm] cleanup failed', e));
+    }
+  };
+
   const handleSubmit = () => {
     if (!name.trim()) return;
     // Store the canonical preset key (translatable). For 'custom', store the
     // free-text the user typed.
     const frequency = frequencyPreset === 'custom' ? frequencyCustom : frequencyPreset;
-    onSave({ name, brand, category, description, routineTime, frequency, status, isActive, notes, purchaseUrl: purchaseUrl.trim() });
+    onSave({ name, brand, category, description, routineTime, frequency, status, isActive, notes, purchaseUrl: purchaseUrl.trim(), imageUrl, imagePath });
     onClose();
   };
 
   return (
     <div className="space-y-4 px-1">
+      {/* Photo */}
+      <div className="flex items-center gap-3">
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handlePhotoFile(f);
+            // Reset input so picking the same file again still fires onChange.
+            e.target.value = '';
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => photoInputRef.current?.click()}
+          disabled={photoUploading}
+          className="relative w-20 h-20 rounded-2xl border border-dashed border-rose-200 bg-rose-50/40 flex items-center justify-center overflow-hidden flex-shrink-0 hover:bg-rose-50"
+          aria-label={t('form.productPhoto')}
+        >
+          {photoUploading ? (
+            <Loader2 className="w-5 h-5 text-rose-400 animate-spin" />
+          ) : imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt={name || 'Product'} className="w-full h-full object-cover" />
+          ) : (
+            <Camera className="w-6 h-6 text-rose-300" />
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <Label className="text-xs text-stone-500 block">{t('form.productPhoto')}</Label>
+          <p className="text-[11px] text-stone-400 mb-2">{t('form.productPhotoHint')}</p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={photoUploading}
+              className="text-[11px] text-rose-500 hover:text-rose-600 disabled:opacity-50 inline-flex items-center gap-1"
+            >
+              <Camera className="w-3 h-3" />
+              {imageUrl ? t('form.replacePhoto') : t('form.addPhoto')}
+            </button>
+            {imageUrl && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                className="text-[11px] text-stone-400 hover:text-rose-500 inline-flex items-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                {t('form.removePhoto')}
+              </button>
+            )}
+          </div>
+          {photoError && <p className="text-[11px] text-rose-500 mt-1">{photoError}</p>}
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label className="text-xs text-stone-500">{t('form.name')}</Label>
@@ -275,6 +376,7 @@ export function SmartAddSheet({
   onSave: (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void;
 }) {
   const { t } = useLocale();
+  const { user } = useAuth();
   const [mode, setMode] = useState<AddMode>('choose');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -305,6 +407,16 @@ export function SmartAddSheet({
     setError('');
     setPreviewSrc(URL.createObjectURL(file));
 
+    // Kick off the photo upload in parallel with AI extraction so the user
+    // doesn't wait twice. If the upload fails we still let extraction proceed
+    // — the user can retake/remove the photo from the form.
+    const uploadPromise = user
+      ? uploadProductPhoto(user.id, file).catch((e) => {
+          console.warn('[SmartAddSheet] photo upload failed', e);
+          return null;
+        })
+      : Promise.resolve(null);
+
     const reader = new FileReader();
     reader.onload = async () => {
       try {
@@ -316,7 +428,12 @@ export function SmartAddSheet({
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Extraction failed');
-        setExtracted(data);
+        const upload = await uploadPromise;
+        setExtracted({
+          ...data,
+          imageUrl: upload?.publicUrl ?? '',
+          imagePath: upload?.storagePath ?? '',
+        });
         setMode('review');
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to extract product details');
@@ -522,7 +639,7 @@ export function SmartAddSheet({
               </div>
             ))}
             <Button
-              onClick={() => { batchExtracted.forEach((p) => onSave({ ...p, purchaseUrl: p.purchaseUrl || '', status: 'have', isActive: true })); handleOpenChange(false); }}
+              onClick={() => { batchExtracted.forEach((p) => onSave({ ...p, purchaseUrl: p.purchaseUrl || '', imageUrl: p.imageUrl || '', imagePath: p.imagePath || '', status: 'have', isActive: true })); handleOpenChange(false); }}
               className="w-full bg-violet-500 hover:bg-violet-600 text-white">
               {t('add.saveAll', { n: batchExtracted.length })}
             </Button>

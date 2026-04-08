@@ -628,6 +628,8 @@ export default function RoutinePage() {
               isActive: true,
               notes: '',
               purchaseUrl: '',
+              imageUrl: '',
+              imagePath: '',
             } as Omit<Product, 'id' | 'createdAt' | 'updatedAt'>);
             if (newId && aiStep) {
               const setter = aiStep.time === 'am' ? setEditAmSteps : setEditPmSteps;
@@ -760,13 +762,23 @@ function StepEditor({
                   {stepProducts.map((p) => (
                     <span
                       key={p.id}
-                      className="inline-flex items-center gap-1.5 ps-2 pe-1 py-1 rounded-full bg-rose-50 border border-rose-100 text-[11px] text-stone-700 max-w-full"
+                      className="inline-flex items-center gap-1.5 ps-1 pe-1 py-0.5 rounded-full bg-rose-50 border border-rose-100 text-[11px] text-stone-700 max-w-full"
                     >
+                      {p.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={p.imageUrl}
+                          alt=""
+                          className="w-5 h-5 rounded-full object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <span className="w-5 h-5 rounded-full bg-rose-100 flex-shrink-0" />
+                      )}
                       <span className="truncate max-w-[140px]">{p.name}</span>
                       <button
                         type="button"
                         onClick={() => onRemoveProduct(step.id, p.id)}
-                        className="text-rose-300 hover:text-rose-500 flex-shrink-0"
+                        className="text-rose-300 hover:text-rose-500 flex-shrink-0 me-0.5"
                         aria-label={t('routine.removeProduct')}
                       >
                         <X className="w-3 h-3" />

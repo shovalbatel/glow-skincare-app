@@ -32,6 +32,7 @@ import {
   Plus,
   Pencil,
   X,
+  ImageIcon,
 } from 'lucide-react';
 import {
   Product,
@@ -636,6 +637,16 @@ function LogStepRow({
         >
           {step.done && <CheckCircle2 className="w-4 h-4" />}
         </button>
+
+        {/* Product thumb (or category placeholder) */}
+        <div className="w-10 h-10 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+          {product?.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+          ) : (
+            <ImageIcon className="w-4 h-4 text-rose-200" />
+          )}
+        </div>
 
         <div className="flex-1 min-w-0">
           <button

@@ -112,6 +112,11 @@ const en = {
   'form.purchaseUrl': 'Buy link',
   'form.purchaseUrlPlaceholder': 'https://store.com/product (optional)',
   'form.activeInRoutine': 'Active in routine?',
+  'form.productPhoto': 'Photo',
+  'form.productPhotoHint': 'Helps you spot the product at a glance',
+  'form.addPhoto': 'Add photo',
+  'form.replacePhoto': 'Replace',
+  'form.removePhoto': 'Remove',
   'form.update': 'Update Product',
   'form.add': 'Add Product',
 
@@ -571,6 +576,11 @@ const he: Record<string, string> = {
   'form.purchaseUrl': 'קישור לקנייה',
   'form.purchaseUrlPlaceholder': 'https://store.com/product (אופציונלי)',
   'form.activeInRoutine': 'פעיל בשגרה?',
+  'form.productPhoto': 'תמונה',
+  'form.productPhotoHint': 'עוזר לזהות את המוצר במבט אחד',
+  'form.addPhoto': 'הוספת תמונה',
+  'form.replacePhoto': 'החלפה',
+  'form.removePhoto': 'הסרה',
   'form.update': 'עדכון מוצר',
   'form.add': 'הוספת מוצר',
 
