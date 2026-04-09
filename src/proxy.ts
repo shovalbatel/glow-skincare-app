@@ -30,8 +30,15 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Allow login page, auth callback, and API routes without auth
-  if (pathname === '/login' || pathname.startsWith('/auth/') || pathname.startsWith('/api/')) {
+  // Allow login page, auth callback, API routes, and metadata routes without auth
+  if (
+    pathname === '/login' ||
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/api/') ||
+    pathname === '/icon' ||
+    pathname === '/apple-icon' ||
+    pathname === '/manifest.webmanifest'
+  ) {
     // If user is logged in and tries to visit /login, redirect to home
     if (user && pathname === '/login') {
       const url = request.nextUrl.clone();
