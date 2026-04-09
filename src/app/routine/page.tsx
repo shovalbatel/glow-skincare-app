@@ -450,6 +450,21 @@ export default function RoutinePage() {
         </div>
       )}
 
+      {/* Full day option */}
+      {state.routineDays.length > 0 && (
+        <div className="px-5 mb-6">
+          <button
+            onClick={() => createRoutine('both')}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-violet-200 hover:bg-violet-50 transition-colors"
+          >
+            <Plus className="w-4 h-4 text-violet-400" />
+            <span className="text-sm font-medium text-violet-500">
+              {t('routine.addFullDayRoutine')}
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Edit sheet (controlled) */}
       <Sheet
         open={!!editing}
