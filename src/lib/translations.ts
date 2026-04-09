@@ -191,6 +191,11 @@ const en = {
   'log.addProductOptional': 'Add a product (optional)',
   'log.noProductOptional': 'No product — that\'s okay',
   'log.clearProduct': 'Clear product',
+  'log.searchProducts': 'Search products…',
+  'log.noResults': 'No products found',
+  'log.matchingCategory': 'Matching category',
+  'log.otherProducts': 'Other products',
+  'log.selectProduct': 'Select Product',
 
   // Routine
   'routine.title': 'Routine',
@@ -657,6 +662,11 @@ const he: Record<string, string> = {
   'log.addProductOptional': 'הוספת מוצר (לא חובה)',
   'log.noProductOptional': 'אין מוצר — זה בסדר',
   'log.clearProduct': 'הסרת מוצר',
+  'log.searchProducts': 'חיפוש מוצרים…',
+  'log.noResults': 'לא נמצאו מוצרים',
+  'log.matchingCategory': 'קטגוריה מתאימה',
+  'log.otherProducts': 'מוצרים נוספים',
+  'log.selectProduct': 'בחירת מוצר',
 
   // Routine
   'routine.title': 'שגרה',

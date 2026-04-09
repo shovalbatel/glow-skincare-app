@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAppState } from '@/hooks/use-app-state';
@@ -23,6 +23,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
   ChevronLeft,
   ChevronRight,
   Sun,
@@ -33,6 +39,7 @@ import {
   Pencil,
   X,
   ImageIcon,
+  Search,
 } from 'lucide-react';
 import {
   Product,
@@ -92,10 +99,27 @@ export default function LogPage() {
   const [notes, setNotes] = useState('');
   const [saved, setSaved] = useState(false);
 
-  // Initialize from existing log + suggested routines whenever date or state
-  // changes.
+  // Track the date+state pair that was last used to initialize the form so we
+  // don't blow away in-progress edits when `state` refreshes (e.g. after
+  // adding a product).
+  const initRef = useRef<{ date: string; stateLoaded: boolean }>({
+    date: '',
+    stateLoaded: false,
+  });
+
+  // Initialize from existing log + suggested routines when the *date* changes
+  // or when state first becomes available. Re-renders caused by product
+  // additions (state refresh) are intentionally skipped so the user's
+  // in-progress step selections are preserved.
   useEffect(() => {
     if (!state) return;
+
+    const alreadyInit =
+      initRef.current.date === selectedDate && initRef.current.stateLoaded;
+    if (alreadyInit) return;
+
+    initRef.current = { date: selectedDate, stateLoaded: true };
+
     const log = getLogByDate(state, selectedDate);
     const amSuggest = getSuggestedRoutine(state, 'am');
     const pmSuggest = getSuggestedRoutine(state, 'pm');
@@ -239,7 +263,10 @@ export default function LogPage() {
 
   const goDay = (delta: number) => {
     const d = delta > 0 ? addDays(new Date(selectedDate), 1) : subDays(new Date(selectedDate), 1);
-    setSelectedDate(format(d, 'yyyy-MM-dd'));
+    const next = format(d, 'yyyy-MM-dd');
+    // Mark that the new date needs initialization.
+    initRef.current = { date: '', stateLoaded: false };
+    setSelectedDate(next);
   };
 
   return (
@@ -584,6 +611,188 @@ function RoutineSection({
   );
 }
 
+function ProductPickerModal({
+  open,
+  onOpenChange,
+  products,
+  stepCategory,
+  selectedProductId,
+  onSelect,
+  onClear,
+  onAddNew,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  products: Product[];
+  stepCategory: ProductCategory;
+  selectedProductId: string | null;
+  onSelect: (pid: string) => void;
+  onClear: () => void;
+  onAddNew: () => void;
+}) {
+  const { t } = useLocale();
+  const [search, setSearch] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus search input when modal opens.
+  useEffect(() => {
+    if (open) {
+      setSearch('');
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [open]);
+
+  const query = search.trim().toLowerCase();
+
+  const { matching, others } = useMemo(() => {
+    const match: Product[] = [];
+    const rest: Product[] = [];
+    for (const p of products) {
+      if (p.category === stepCategory) match.push(p);
+      else rest.push(p);
+    }
+    return { matching: match, others: rest };
+  }, [products, stepCategory]);
+
+  const filterList = (list: Product[]) => {
+    if (!query) return list;
+    return list.filter(
+      (p) =>
+        p.name.toLowerCase().includes(query) ||
+        p.brand.toLowerCase().includes(query) ||
+        t('cat.' + p.category).toLowerCase().includes(query)
+    );
+  };
+
+  const filteredMatching = filterList(matching);
+  const filteredOthers = filterList(others);
+  const totalResults = filteredMatching.length + filteredOthers.length;
+
+  const renderProductCard = (p: Product) => {
+    const isSelected = p.id === selectedProductId;
+    return (
+      <button
+        key={p.id}
+        type="button"
+        onClick={() => {
+          onSelect(p.id);
+          onOpenChange(false);
+        }}
+        className={`w-full text-start rounded-xl border p-3 transition-all ${
+          isSelected
+            ? 'border-rose-300 bg-rose-50 ring-1 ring-rose-200'
+            : 'border-stone-150 bg-white hover:border-rose-200 hover:bg-rose-50/30'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+            {p.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+            ) : (
+              <ImageIcon className="w-5 h-5 text-rose-200" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-stone-700 truncate">{p.name}</p>
+            <p className="text-xs text-stone-500 truncate">{p.brand}</p>
+            <p className="text-[11px] text-stone-400 mt-0.5">{t('cat.' + p.category)}</p>
+          </div>
+          {isSelected && <CheckCircle2 className="w-5 h-5 text-rose-500 flex-shrink-0" />}
+        </div>
+      </button>
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="fixed inset-0 top-0 left-0 w-full h-full max-w-none translate-x-0 translate-y-0 rounded-none sm:max-w-none flex flex-col p-0"
+        showCloseButton={false}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-stone-100 flex-shrink-0">
+          <h2 className="text-base font-semibold text-stone-700">{t('log.selectProduct')}</h2>
+          <DialogClose
+            className="w-8 h-8 rounded-full flex items-center justify-center text-stone-400 hover:text-stone-600 hover:bg-stone-100"
+          >
+            <X className="w-5 h-5" />
+          </DialogClose>
+        </div>
+
+        {/* Search bar */}
+        <div className="px-4 py-3 flex-shrink-0">
+          <div className="relative">
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+            <Input
+              ref={inputRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('log.searchProducts')}
+              className="ps-9 h-10 text-sm border-rose-100 rounded-xl bg-rose-50/30"
+            />
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="px-4 pb-2 flex gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              onAddNew();
+              onOpenChange(false);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-xs font-medium hover:bg-rose-100 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> {t('log.addNewProduct')}
+          </button>
+          {selectedProductId && (
+            <button
+              type="button"
+              onClick={() => {
+                onClear();
+                onOpenChange(false);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-100 text-stone-500 text-xs font-medium hover:bg-stone-200 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" /> {t('log.clearProduct')}
+            </button>
+          )}
+        </div>
+
+        {/* Product list */}
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {totalResults === 0 && (
+            <p className="text-center text-sm text-stone-400 mt-8">{t('log.noResults')}</p>
+          )}
+
+          {filteredMatching.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[11px] font-medium text-stone-500 uppercase tracking-wider mb-2">
+                {t('log.matchingCategory')} — {t('cat.' + stepCategory)}
+              </p>
+              <div className="space-y-2">
+                {filteredMatching.map(renderProductCard)}
+              </div>
+            </div>
+          )}
+
+          {filteredOthers.length > 0 && (
+            <div>
+              <p className="text-[11px] font-medium text-stone-500 uppercase tracking-wider mb-2">
+                {t('log.otherProducts')}
+              </p>
+              <div className="space-y-2">
+                {filteredOthers.map(renderProductCard)}
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function LogStepRow({
   step,
   allProducts,
@@ -602,14 +811,7 @@ function LogStepRow({
   onAddNew: () => void;
 }) {
   const { t } = useLocale();
-  const [picking, setPicking] = useState(false);
-
-  const sortedProducts = useMemo(() => {
-    // Same-category products first; routineTime is just a hint, no filtering.
-    const same = allProducts.filter((p) => p.category === step.category);
-    const others = allProducts.filter((p) => p.category !== step.category);
-    return [...same, ...others];
-  }, [allProducts, step.category]);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const product = step.productId
     ? allProducts.find((p) => p.id === step.productId)
@@ -639,14 +841,18 @@ function LogStepRow({
         </button>
 
         {/* Product thumb (or category placeholder) */}
-        <div className="w-10 h-10 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="w-10 h-10 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center overflow-hidden flex-shrink-0 hover:border-rose-300 transition-colors"
+        >
           {product?.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
           ) : (
             <ImageIcon className="w-4 h-4 text-rose-200" />
           )}
-        </div>
+        </button>
 
         <div className="flex-1 min-w-0">
           <button
@@ -673,74 +879,14 @@ function LogStepRow({
             )}
           </button>
 
-          {!picking && (
-            <button
-              type="button"
-              onClick={() => setPicking(true)}
-              className="text-[11px] text-rose-500 hover:text-rose-600 mt-1.5 flex items-center gap-1"
-            >
-              <Pencil className="w-3 h-3" />
-              {product ? t('log.changeProduct') : t('log.addProductOptional')}
-            </button>
-          )}
-
-          {picking && (
-            <div className="mt-2 space-y-2">
-              <Select
-                value={step.productId ?? ''}
-                onValueChange={(v) => {
-                  if (v) {
-                    onSetProduct(v);
-                    setPicking(false);
-                  }
-                }}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder={t('log.pickProduct')}>
-                    {(v) => {
-                      const p = allProducts.find((x) => x.id === v);
-                      return p ? `${p.name} — ${p.brand}` : t('log.pickProduct');
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {sortedProducts.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} — {p.brand}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={onAddNew}
-                  className="text-[11px] text-rose-500 hover:text-rose-600 flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" /> {t('log.addNewProduct')}
-                </button>
-                {product && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClearProduct();
-                      setPicking(false);
-                    }}
-                    className="text-[11px] text-stone-400 hover:text-stone-600"
-                  >
-                    {t('log.clearProduct')}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setPicking(false)}
-                  className="text-[11px] text-stone-400 hover:text-stone-600 ms-auto"
-                >
-                  {t('common.cancel')}
-                </button>
-              </div>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="text-[11px] text-rose-500 hover:text-rose-600 mt-1.5 flex items-center gap-1"
+          >
+            <Pencil className="w-3 h-3" />
+            {product ? t('log.changeProduct') : t('log.addProductOptional')}
+          </button>
         </div>
 
         <button
@@ -752,6 +898,17 @@ function LogStepRow({
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      <ProductPickerModal
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        products={allProducts}
+        stepCategory={step.category}
+        selectedProductId={step.productId}
+        onSelect={(pid) => onSetProduct(pid)}
+        onClear={onClearProduct}
+        onAddNew={onAddNew}
+      />
     </div>
   );
 }
