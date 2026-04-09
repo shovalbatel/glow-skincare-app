@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAppState } from '@/hooks/use-app-state';
@@ -82,12 +83,24 @@ function stepsFromRoutine(routineSteps: RoutineStep[] | undefined): LoggedStep[]
   }));
 }
 
-export default function LogPage() {
+export default function LogPageWrapper() {
+  return (
+    <Suspense>
+      <LogPage />
+    </Suspense>
+  );
+}
+
+function LogPage() {
   const { state, saveLog, addProduct } = useAppState();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addForStep, setAddForStep] = useState<{ time: 'am' | 'pm'; stepId: string } | null>(null);
   const { t } = useLocale();
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const searchParams = useSearchParams();
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const param = searchParams.get('date');
+    return param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : format(new Date(), 'yyyy-MM-dd');
+  });
 
   const [amRoutineId, setAmRoutineId] = useState<string | null>(null);
   const [pmRoutineId, setPmRoutineId] = useState<string | null>(null);

@@ -86,6 +86,11 @@ const en = {
   'home.active': 'Active',
   'home.toBuy': 'To Buy',
   'home.logs': 'Logs',
+  'home.plan': 'Plan',
+  'home.logRoutine': 'Log routine',
+  'home.logSubtitleDay': 'Track what you used and how your skin feels',
+  'home.dayLog': 'Log',
+  'home.noLogYet': 'No log yet',
 
   // Products
   'products.title': 'Products',
@@ -557,6 +562,11 @@ const he: Record<string, string> = {
   'home.active': 'פעילים',
   'home.toBuy': 'לקנות',
   'home.logs': 'יומנים',
+  'home.plan': 'תוכנית',
+  'home.logRoutine': 'תעד/י שגרה',
+  'home.logSubtitleDay': 'עקוב/י אחרי מה שהשתמשת ואיך העור מרגיש',
+  'home.dayLog': 'יומן',
+  'home.noLogYet': 'אין יומן עדיין',
 
   // Products
   'products.title': 'מוצרים',
