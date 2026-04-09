@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ImageIcon,
+  Pencil,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -281,8 +282,19 @@ export default function HomePage() {
                       {amRoutine.name}
                     </Badge>
                   )}
-                  {dayLog?.amCompleted && (
+                  {dayLog?.amCompleted ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 ms-auto" />
+                  ) : (
+                    <Link href={`/log?date=${selectedDate}`} className="ms-auto">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[11px] text-rose-500 hover:text-rose-600 hover:bg-rose-50 gap-1 px-2"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        {t('home.logRoutine')}
+                      </Button>
+                    </Link>
                   )}
                 </div>
                 <div className="space-y-3">
@@ -309,8 +321,19 @@ export default function HomePage() {
                       {pmRoutine.name}
                     </Badge>
                   )}
-                  {dayLog?.pmCompleted && (
+                  {dayLog?.pmCompleted ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 ms-auto" />
+                  ) : (
+                    <Link href={`/log?date=${selectedDate}`} className="ms-auto">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-[11px] text-rose-500 hover:text-rose-600 hover:bg-rose-50 gap-1 px-2"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        {t('home.logRoutine')}
+                      </Button>
+                    </Link>
                   )}
                 </div>
                 <div className="space-y-3">
