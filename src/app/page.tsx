@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { SKIN_CONDITION_ICONS, RoutineStep } from '@/lib/types';
+import { SKIN_CONDITION_ICONS, RoutineStep, Product, ProductCategory } from '@/lib/types';
 import { useLocale } from '@/components/locale-provider';
 
 export default function HomePage() {
@@ -46,13 +46,66 @@ export default function HomePage() {
   const pmRoutine = getSuggestedRoutine(state, 'pm');
   const dayLog = getLogByDate(state, selectedDate);
 
-  const amSteps = amRoutine?.amSteps || [];
-  const pmSteps = pmRoutine?.pmSteps || [];
+  const amRoutineSteps = amRoutine?.amSteps || [];
+  const pmRoutineSteps = pmRoutine?.pmSteps || [];
   const hasRoutine = !!(amRoutine || pmRoutine);
 
-  // Build a set of logged product IDs for quick lookup per time slot.
-  const amLoggedIds = new Set(dayLog?.amProducts ?? []);
-  const pmLoggedIds = new Set(dayLog?.pmProducts ?? []);
+  /** Build display steps for a time slot.
+   *  When a log exists → show the actual logged products (grouped by category),
+   *  using the routine template for structure where possible.
+   *  When no log exists → show the routine template as a plan. */
+  const buildDisplaySteps = (
+    routineSteps: RoutineStep[],
+    loggedProductIds: string[]
+  ): { category: ProductCategory; product: Product | undefined; done: boolean }[] => {
+    if (loggedProductIds.length === 0 && routineSteps.length > 0) {
+      // No log — show routine template as plan.
+      return routineSteps.flatMap((step) => {
+        if (step.productIds.length === 0) {
+          return [{ category: step.category, product: undefined, done: false }];
+        }
+        return step.productIds.map((id) => ({
+          category: step.category,
+          product: getProductById(state, id),
+          done: false,
+        }));
+      });
+    }
+
+    // Log exists — build from the actual logged products, using routine steps
+    // for ordering.
+    const loggedProducts = loggedProductIds
+      .map((id) => getProductById(state, id))
+      .filter((p): p is Product => !!p);
+    const used = new Set<string>();
+    const result: { category: ProductCategory; product: Product | undefined; done: boolean }[] = [];
+
+    // First pass: walk routine steps and match logged products by category.
+    for (const step of routineSteps) {
+      const match = loggedProducts.find(
+        (p) => !used.has(p.id) && p.category === step.category
+      );
+      if (match) {
+        used.add(match.id);
+        result.push({ category: step.category, product: match, done: true });
+      } else {
+        result.push({ category: step.category, product: undefined, done: false });
+      }
+    }
+
+    // Second pass: any logged products not matched to a routine step.
+    for (const p of loggedProducts) {
+      if (used.has(p.id)) continue;
+      result.push({ category: p.category, product: p, done: true });
+    }
+
+    return result;
+  };
+
+  const amDisplay = buildDisplaySteps(amRoutineSteps, dayLog?.amProducts ?? []);
+  const pmDisplay = buildDisplaySteps(pmRoutineSteps, dayLog?.pmProducts ?? []);
+  const hasAmContent = amDisplay.length > 0;
+  const hasPmContent = pmDisplay.length > 0;
 
   const weekLogs = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -69,93 +122,58 @@ export default function HomePage() {
     setSelectedDate(format(d, 'yyyy-MM-dd'));
   };
 
-  /** Check whether a routine step has at least one product that appears in the
-   *  day's logged products. */
-  const isStepLogged = (step: RoutineStep, loggedIds: Set<string>): boolean => {
-    // A step is "done" if any of its assigned products was logged, OR if the
-    // step has no products but the category appears in the log (product added
-    // at log time).
-    if (step.productIds.length > 0) {
-      return step.productIds.some((id) => loggedIds.has(id));
-    }
-    // Step has no pre-assigned product — check if the user logged any product
-    // of the same category.
-    for (const id of loggedIds) {
-      const p = getProductById(state, id);
-      if (p?.category === step.category) return true;
-    }
-    return false;
-  };
-
-  const renderSteps = (
-    steps: RoutineStep[],
-    loggedIds: Set<string>,
-    completed: boolean | undefined
+  const renderDisplaySteps = (
+    steps: { category: ProductCategory; product: Product | undefined; done: boolean }[]
   ) =>
-    steps.map((step) => {
-      const products = step.productIds
-        .map((id) => getProductById(state, id))
-        .filter(Boolean);
-      const stepDone = completed || isStepLogged(step, loggedIds);
-
-      return (
-        <div key={step.id} className="flex items-start gap-2.5">
-          {/* Per-step completion indicator */}
-          <div className="mt-0.5 flex-shrink-0">
-            {stepDone ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            ) : (
-              <Circle className="w-4 h-4 text-stone-300" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p
-              className={`text-[11px] font-medium uppercase tracking-wider mb-0.5 ${
-                stepDone ? 'text-emerald-600' : 'text-stone-500'
-              }`}
-            >
-              {t('cat.' + step.category)}
-            </p>
-            {products.length === 0 ? (
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-md bg-stone-100 flex items-center justify-center">
-                  <ImageIcon className="w-3.5 h-3.5 text-stone-300" />
-                </div>
-                <span className="text-xs text-stone-400 italic">{t('home.noProductYet')}</span>
-              </div>
-            ) : (
-              products.map(
-                (p) =>
-                  p && (
-                    <div key={p.id} className="flex items-center gap-2 mb-0.5">
-                      <div className="w-7 h-7 rounded-md bg-rose-50 border border-rose-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {p.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={p.imageUrl}
-                            alt={p.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <ImageIcon className="w-3.5 h-3.5 text-rose-200" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <span
-                          className={`text-sm ${stepDone ? 'text-stone-500' : 'text-stone-700'}`}
-                        >
-                          {p.name}
-                        </span>
-                        <span className="text-xs text-stone-400 ms-1.5">{p.brand}</span>
-                      </div>
-                    </div>
-                  )
-              )
-            )}
-          </div>
+    steps.map((step, i) => (
+      <div key={`${step.category}-${step.product?.id ?? i}`} className="flex items-start gap-2.5">
+        <div className="mt-0.5 flex-shrink-0">
+          {step.done ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          ) : (
+            <Circle className="w-4 h-4 text-stone-300" />
+          )}
         </div>
-      );
-    });
+        <div className="flex-1 min-w-0">
+          <p
+            className={`text-[11px] font-medium uppercase tracking-wider mb-0.5 ${
+              step.done ? 'text-emerald-600' : 'text-stone-500'
+            }`}
+          >
+            {t('cat.' + step.category)}
+          </p>
+          {!step.product ? (
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-stone-100 flex items-center justify-center">
+                <ImageIcon className="w-3.5 h-3.5 text-stone-300" />
+              </div>
+              <span className="text-xs text-stone-400 italic">{t('home.noProductYet')}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="w-7 h-7 rounded-md bg-rose-50 border border-rose-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {step.product.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={step.product.imageUrl}
+                    alt={step.product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <ImageIcon className="w-3.5 h-3.5 text-rose-200" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <span className={`text-sm ${step.done ? 'text-stone-500' : 'text-stone-700'}`}>
+                  {step.product.name}
+                </span>
+                <span className="text-xs text-stone-400 ms-1.5">{step.product.brand}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    ));
 
   return (
     <AppShell>
@@ -237,8 +255,8 @@ export default function HomePage() {
         </Card>
       </div>
 
-      {/* Day's routine plan */}
-      {hasRoutine && (
+      {/* Day's routine / log display */}
+      {(hasRoutine || hasAmContent || hasPmContent) && (
         <div className="px-5 mb-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-stone-700 uppercase tracking-wider">
@@ -247,7 +265,7 @@ export default function HomePage() {
           </div>
 
           {/* AM */}
-          {amRoutine && (
+          {hasAmContent && (
             <Card className="border-rose-100 shadow-sm mb-3">
               <CardContent className="pt-4 pb-3">
                 <div className="flex items-center gap-2 mb-3">
@@ -255,28 +273,27 @@ export default function HomePage() {
                   <span className="text-sm font-semibold text-stone-700">
                     {t('common.morning')}
                   </span>
-                  <Badge
-                    variant="secondary"
-                    className="bg-rose-100 text-rose-600 text-[10px]"
-                  >
-                    {amRoutine.name}
-                  </Badge>
+                  {amRoutine && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-rose-100 text-rose-600 text-[10px]"
+                    >
+                      {amRoutine.name}
+                    </Badge>
+                  )}
                   {dayLog?.amCompleted && (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 ms-auto" />
                   )}
                 </div>
                 <div className="space-y-3">
-                  {renderSteps(amSteps, amLoggedIds, dayLog?.amCompleted)}
-                  {amSteps.length === 0 && (
-                    <p className="text-xs text-stone-400 italic">{t('home.noSteps')}</p>
-                  )}
+                  {renderDisplaySteps(amDisplay)}
                 </div>
               </CardContent>
             </Card>
           )}
 
           {/* PM */}
-          {pmRoutine && (
+          {hasPmContent && (
             <Card className="border-rose-100 shadow-sm">
               <CardContent className="pt-4 pb-3">
                 <div className="flex items-center gap-2 mb-3">
@@ -284,21 +301,20 @@ export default function HomePage() {
                   <span className="text-sm font-semibold text-stone-700">
                     {t('common.evening')}
                   </span>
-                  <Badge
-                    variant="secondary"
-                    className="bg-rose-100 text-rose-600 text-[10px]"
-                  >
-                    {pmRoutine.name}
-                  </Badge>
+                  {pmRoutine && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-rose-100 text-rose-600 text-[10px]"
+                    >
+                      {pmRoutine.name}
+                    </Badge>
+                  )}
                   {dayLog?.pmCompleted && (
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 ms-auto" />
                   )}
                 </div>
                 <div className="space-y-3">
-                  {renderSteps(pmSteps, pmLoggedIds, dayLog?.pmCompleted)}
-                  {pmSteps.length === 0 && (
-                    <p className="text-xs text-stone-400 italic">{t('home.noSteps')}</p>
-                  )}
+                  {renderDisplaySteps(pmDisplay)}
                 </div>
               </CardContent>
             </Card>
