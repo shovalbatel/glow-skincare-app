@@ -91,14 +91,18 @@ export default function RoutinePage() {
   const morningRoutines = state.routineDays.filter((d) => (d.amSteps?.length ?? 0) > 0);
   const eveningRoutines = state.routineDays.filter((d) => (d.pmSteps?.length ?? 0) > 0);
 
-  const startEdit = (day: RoutineDay) => {
+  const startEdit = (day: RoutineDay, modeOverride?: EditMode) => {
     setEditing(day);
     setEditName(day.name);
     setEditAmSteps(JSON.parse(JSON.stringify(day.amSteps || [])));
     setEditPmSteps(JSON.parse(JSON.stringify(day.pmSteps || [])));
-    const hasAm = (day.amSteps?.length ?? 0) > 0;
-    const hasPm = (day.pmSteps?.length ?? 0) > 0;
-    setEditMode(hasAm && hasPm ? 'both' : hasPm ? 'pm' : 'am');
+    if (modeOverride) {
+      setEditMode(modeOverride);
+    } else {
+      const hasAm = (day.amSteps?.length ?? 0) > 0;
+      const hasPm = (day.pmSteps?.length ?? 0) > 0;
+      setEditMode(hasAm && hasPm ? 'both' : hasPm ? 'pm' : 'am');
+    }
     setAiHints({});
     setAiError(null);
   };
@@ -120,6 +124,7 @@ export default function RoutinePage() {
         body: JSON.stringify({
           dayName: editName || editing.name,
           dayNumber: 1,
+          routineType: editMode,
           products: eligibleProducts.map((p) => ({
             id: p.id,
             name: p.name,
@@ -271,7 +276,7 @@ export default function RoutinePage() {
     };
     const updated = [...state.routineDays, newRoutine];
     updateRoutine(updated);
-    setTimeout(() => startEdit(newRoutine), 100);
+    setTimeout(() => startEdit(newRoutine, mode), 100);
   };
 
   const deleteRoutine = (day: RoutineDay) => {

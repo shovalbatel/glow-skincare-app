@@ -17,14 +17,20 @@ const VALID_CATEGORIES = [
 
 type Category = (typeof VALID_CATEGORIES)[number];
 
-const SYSTEM_PROMPT = `You are an expert skincare consultant building a single day's routine for a user.
+const SYSTEM_PROMPT = `You are an expert skincare consultant building a routine for a user.
 
 You will receive:
 - The user's product library (each item has id, name, brand, category, routineTime)
 - Optional skin analysis, goals, concerns
 - The day's name (which may hint at intent, e.g. "Retinol Night")
+- The routine type: "am" (morning only), "pm" (evening only), or "both" (full day)
 
-Your job: design an AM routine and a PM routine for THIS day. Each routine is an ordered list of steps. Each step has a category, and either references one of the user's products by id, OR suggests a new product the user should add for that step.
+Your job: design the requested routine(s) for THIS day. Each routine is an ordered list of steps. Each step has a category, and either references one of the user's products by id, OR suggests a new product the user should add for that step.
+
+IMPORTANT: Only build the routine type requested.
+- If routineType is "am": ONLY return amSteps (set pmSteps to an empty array)
+- If routineType is "pm": ONLY return pmSteps (set amSteps to an empty array)
+- If routineType is "both": return both amSteps and pmSteps
 
 STRICT RULES:
 - Always prefer products the user ALREADY has (productIds drawn from the provided library). Match by category and routineTime ('am'/'pm'/'both').
@@ -109,11 +115,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'GROQ_API_KEY not set' }, { status: 500 });
     }
 
-    const { products, dayName, dayNumber, skinAnalysis, goals, concerns } =
+    const { products, dayName, dayNumber, routineType, skinAnalysis, goals, concerns } =
       (await request.json()) as {
         products?: LibraryProduct[];
         dayName?: string;
         dayNumber?: number;
+        routineType?: 'am' | 'pm' | 'both';
         skinAnalysis?: unknown;
         goals?: string[];
         concerns?: string[];
@@ -129,9 +136,12 @@ export async function POST(request: NextRequest) {
       routineTime: p.routineTime,
     }));
 
+    const typeLabel = routineType === 'am' ? 'morning only' : routineType === 'pm' ? 'evening only' : 'full day (both AM and PM)';
+
     const userContext = `DAY: ${dayName ?? 'Unnamed'}${
       dayNumber ? ` (day ${dayNumber} of cycle)` : ''
     }
+ROUTINE TYPE: ${typeLabel}
 
 USER PRODUCT LIBRARY (prefer these by id):
 ${JSON.stringify(slimLibrary)}
@@ -140,7 +150,7 @@ SKIN ANALYSIS: ${skinAnalysis ? JSON.stringify(skinAnalysis) : 'none'}
 GOALS: ${goals?.join(', ') || 'not specified'}
 CONCERNS: ${concerns?.join(', ') || 'not specified'}
 
-Build the AM and PM routine for this day. Reference the user's products by id wherever possible. Only fall back to a "suggestion" object when no product in the library fits a needed step.`;
+Build ONLY the ${typeLabel} routine for this day. Reference the user's products by id wherever possible. Only fall back to a "suggestion" object when no product in the library fits a needed step.`;
 
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
