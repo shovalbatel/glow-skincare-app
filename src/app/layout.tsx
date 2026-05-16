@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, DM_Serif_Display, Heebo } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/components/auth-provider";
@@ -26,6 +26,10 @@ const heebo = Heebo({
 export const metadata: Metadata = {
   title: "Glow — Skincare Tracker",
   description: "Your personal skincare routine tracker and product manager",
+};
+
+export const viewport: Viewport = {
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

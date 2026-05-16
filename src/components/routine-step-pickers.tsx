@@ -175,7 +175,7 @@ export function StepProductPicker({
           </div>
         )}
 
-        <div className="sticky bottom-0 bg-white pt-3 mt-4 border-t border-stone-100 flex items-center gap-2">
+        <div className="sticky bottom-0 bg-white pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] mt-4 border-t border-stone-100 flex items-center gap-2">
           <Button
             variant="ghost"
             onClick={onAddNew}
@@ -385,7 +385,7 @@ export function StepAiSuggestSheet({
           </div>
         )}
 
-        <div className="mt-5">
+        <div className="mt-5 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
