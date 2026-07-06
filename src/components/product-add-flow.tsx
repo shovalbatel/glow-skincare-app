@@ -100,6 +100,11 @@ export function ProductForm({
   // isActive is no longer surfaced in the UI — kept defaulted true for any
   // legacy callers that still read it.
   const isActive = product?.isActive ?? true;
+  // Journal-import fields — not UI-editable here; preserved unchanged on edit,
+  // defaulted for new products.
+  const rating = product?.rating ?? null;
+  const inventoryLevel = product?.inventoryLevel ?? 'unknown';
+  const tags = product?.tags ?? [];
   const [notes, setNotes] = useState(src?.notes || '');
   const [purchaseUrl, setPurchaseUrl] = useState(src?.purchaseUrl || '');
   const [enriching, setEnriching] = useState(false);
@@ -192,7 +197,7 @@ export function ProductForm({
     // Store the canonical preset key (translatable). For 'custom', store the
     // free-text the user typed.
     const frequency = frequencyPreset === 'custom' ? frequencyCustom : frequencyPreset;
-    onSave({ name, brand, category, description, routineTime, frequency, status, isActive, notes, purchaseUrl: purchaseUrl.trim(), imageUrl, imagePath });
+    onSave({ name, brand, category, description, routineTime, frequency, status, isActive, notes, purchaseUrl: purchaseUrl.trim(), imageUrl, imagePath, rating, inventoryLevel, tags });
     onClose();
   };
 
@@ -675,7 +680,7 @@ export function SmartAddSheet({
               </div>
             ))}
             <Button
-              onClick={() => { batchExtracted.forEach((p) => onSave({ ...p, purchaseUrl: p.purchaseUrl || '', imageUrl: p.imageUrl || '', imagePath: p.imagePath || '', status: 'have', isActive: true })); handleOpenChange(false); }}
+              onClick={() => { batchExtracted.forEach((p) => onSave({ ...p, purchaseUrl: p.purchaseUrl || '', imageUrl: p.imageUrl || '', imagePath: p.imagePath || '', status: 'have', isActive: true, rating: null, inventoryLevel: 'unknown', tags: [] })); handleOpenChange(false); }}
               className="w-full bg-violet-500 hover:bg-violet-600 text-white">
               {t('add.saveAll', { n: batchExtracted.length })}
             </Button>

@@ -2,7 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { AppState, Product, SkinCondition, SkinFeeling, RoutineDay } from '@/lib/types';
+import {
+  AppState,
+  Product,
+  SkinCondition,
+  SkinFeeling,
+  RoutineDay,
+  JournalEntry,
+  JournalKind,
+  CurrentState,
+} from '@/lib/types';
 import {
   loadState,
   addProduct as storeAddProduct,
@@ -10,6 +19,10 @@ import {
   deleteProduct as storeDeleteProduct,
   addOrUpdateLog as storeAddOrUpdateLog,
   updateRoutineDays as storeUpdateRoutineDays,
+  addJournalEntry as storeAddJournalEntry,
+  updateJournalEntry as storeUpdateJournalEntry,
+  saveCurrentState as storeSaveCurrentState,
+  advanceRotation as storeAdvanceRotation,
   checkOnboardingStatus,
 } from '@/lib/store';
 import { useAuth } from '@/components/auth-provider';
@@ -94,6 +107,47 @@ export function useAppState() {
     [user, refresh]
   );
 
+  const doAddJournalEntry = useCallback(
+    async (entry: {
+      kind: JournalKind;
+      title?: string;
+      body: string;
+      status?: string;
+      tags?: string[];
+      entryDate?: string | null;
+    }): Promise<string | undefined> => {
+      if (!user) return undefined;
+      const id = await storeAddJournalEntry(user.id, entry);
+      await refresh();
+      return id;
+    },
+    [user, refresh]
+  );
+
+  const doUpdateJournalEntry = useCallback(
+    async (id: string, updates: Partial<Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'>>) => {
+      await storeUpdateJournalEntry(id, updates);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const doSaveCurrentState = useCallback(
+    async (cs: CurrentState) => {
+      if (!user) return;
+      await storeSaveCurrentState(user.id, cs);
+      await refresh();
+    },
+    [user, refresh]
+  );
+
+  /** Advance the night rotation to the next protocol. */
+  const doAdvanceRotation = useCallback(async () => {
+    if (!user || !state) return;
+    await storeAdvanceRotation(user.id, state.nightRotation);
+    await refresh();
+  }, [user, state, refresh]);
+
   return {
     state,
     refresh,
@@ -102,5 +156,9 @@ export function useAppState() {
     deleteProduct: doDeleteProduct,
     saveLog: doSaveLog,
     updateRoutine: doUpdateRoutine,
+    addJournalEntry: doAddJournalEntry,
+    updateJournalEntry: doUpdateJournalEntry,
+    saveCurrentState: doSaveCurrentState,
+    advanceRotation: doAdvanceRotation,
   };
 }

@@ -1178,6 +1178,9 @@ function StepOtherProducts({
         purchaseUrl: '',
         imageUrl: '',
         imagePath: '',
+        rating: null,
+        inventoryLevel: 'unknown',
+        tags: [],
       };
       await storeAddProduct(userId, prodData);
       setOtherProducts((prev) => [...prev, prodData]);
@@ -1499,6 +1502,8 @@ export default function OnboardPage() {
       id: `rd_${Date.now()}`,
       dayNumber: 1,
       name: 'Daily Routine',
+      kind: 'daily',
+      trigger: '',
       amSteps,
       pmSteps,
       amProducts: amSteps.flatMap((s) => s.productIds),
@@ -1512,6 +1517,8 @@ export default function OnboardPage() {
         id: `rd_${Date.now()}_v${idx}`,
         dayNumber: idx + 2,
         name: variation.name,
+        kind: 'rotation',
+        trigger: '',
         amSteps,
         pmSteps: variationPmSteps,
         amProducts: amSteps.flatMap((s) => s.productIds),

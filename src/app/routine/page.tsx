@@ -21,6 +21,7 @@ import {
 import {
   Sun,
   Moon,
+  SunMoon,
   Pencil,
   Sparkles,
   Plus,
@@ -88,8 +89,15 @@ export default function RoutinePage() {
     (p) => p.status === 'have' || p.status === 'almost_empty'
   );
 
-  const morningRoutines = state.routineDays.filter((d) => (d.amSteps?.length ?? 0) > 0);
-  const eveningRoutines = state.routineDays.filter((d) => (d.pmSteps?.length ?? 0) > 0);
+  // Conditional protocols ("when needed") are listed separately, not among the
+  // regular morning/evening routines.
+  const morningRoutines = state.routineDays.filter(
+    (d) => d.kind !== 'conditional' && (d.amSteps?.length ?? 0) > 0
+  );
+  const eveningRoutines = state.routineDays.filter(
+    (d) => d.kind !== 'conditional' && (d.pmSteps?.length ?? 0) > 0
+  );
+  const conditionalRoutines = state.routineDays.filter((d) => d.kind === 'conditional');
 
   const startEdit = (day: RoutineDay, modeOverride?: EditMode) => {
     setEditing(day);
@@ -269,6 +277,8 @@ export default function RoutinePage() {
       id: newRoutineId(),
       dayNumber: state.routineDays.length + 1,
       name: baseName,
+      kind: mode === 'am' ? 'daily' : 'rotation',
+      trigger: '',
       amSteps: [],
       pmSteps: [],
       amProducts: [],
@@ -446,6 +456,35 @@ export default function RoutinePage() {
                 {t('routine.addEveningRoutine')}
               </span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Conditional protocols — "when needed" */}
+      {conditionalRoutines.length > 0 && (
+        <div className="px-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <SunMoon className="w-4 h-4 text-teal-500" />
+            <h2 className="text-sm font-semibold text-stone-700 uppercase tracking-wider">
+              {t('routine.whenNeeded')}
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {conditionalRoutines.map((d) => {
+              const time: 'am' | 'pm' = (d.pmSteps?.length ?? 0) > 0 ? 'pm' : 'am';
+              return (
+                <div key={d.id}>
+                  {d.trigger && (
+                    <div className="flex items-center gap-1.5 mb-1 ms-1">
+                      <span className="text-[11px] font-medium text-teal-600 capitalize">
+                        {d.trigger}
+                      </span>
+                    </div>
+                  )}
+                  {renderRoutineCard(d, time)}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

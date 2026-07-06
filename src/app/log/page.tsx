@@ -9,6 +9,7 @@ import {
   getLogByDate,
   getRoutinesForTime,
   getSuggestedRoutine,
+  getNextNight,
   writeLastUsedRoutineId,
 } from '@/lib/store';
 import { format, subDays, addDays } from 'date-fns';
@@ -92,7 +93,7 @@ export default function LogPageWrapper() {
 }
 
 function LogPage() {
-  const { state, saveLog, addProduct } = useAppState();
+  const { state, saveLog, addProduct, advanceRotation } = useAppState();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addForStep, setAddForStep] = useState<{ time: 'am' | 'pm'; stepId: string } | null>(null);
   const { t } = useLocale();
@@ -253,6 +254,11 @@ function LogPage() {
       .map((s) => s.productId!) as string[];
     const amDone = amSteps.length > 0 && amSteps.every((s) => s.done);
     const pmDone = pmSteps.length > 0 && pmSteps.every((s) => s.done);
+
+    // Was the evening already complete for this day before this save? Used to
+    // avoid advancing the rotation again when re-saving / editing a logged day.
+    const wasPmDone = getLogByDate(state, selectedDate)?.pmCompleted ?? false;
+
     saveLog({
       date: selectedDate,
       amCompleted: amDone,
@@ -270,6 +276,18 @@ function LogPage() {
     if (pmRoutineId && pmSteps.some((s) => s.done)) {
       writeLastUsedRoutineId('pm', pmRoutineId);
     }
+
+    // Auto-advance the night rotation when tonight's evening routine is newly
+    // completed. Guards: only for today, only when a rotation is configured,
+    // and only when the logged evening is the current rotation night (so
+    // conditional protocols and history edits don't move the pointer).
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const rotationConfigured = (state.nightRotation.order?.length ?? 0) > 0;
+    const isCurrentRotationNight = pmRoutineId != null && pmRoutineId === getNextNight(state)?.id;
+    if (selectedDate === today && pmDone && !wasPmDone && rotationConfigured && isCurrentRotationNight) {
+      advanceRotation();
+    }
+
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

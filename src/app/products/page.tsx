@@ -16,12 +16,21 @@ import {
   Product,
   ProductStatus,
   RoutineTime,
+  InventoryLevel,
   STATUS_LABELS,
   STATUS_COLORS,
 } from '@/lib/types';
 import { useLocale } from '@/components/locale-provider';
 
 const ALL_STATUSES = Object.keys(STATUS_LABELS) as ProductStatus[];
+
+const INVENTORY_COLORS: Record<InventoryLevel, string> = {
+  new: 'text-emerald-600 border-emerald-200',
+  medium: 'text-sky-600 border-sky-200',
+  low: 'text-amber-600 border-amber-200',
+  empty: 'text-rose-600 border-rose-200',
+  unknown: 'text-stone-400 border-stone-200',
+};
 
 export default function ProductsPage() {
   const { state, addProduct, updateProduct, deleteProduct } = useAppState();
@@ -121,12 +130,27 @@ export default function ProductsPage() {
                   </div>
                   <p className="text-xs text-stone-400 mt-0.5">{p.brand} &middot; {t('cat.' + p.category)}</p>
                   <p className="text-xs text-stone-500 mt-1">{p.description}</p>
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
                     <Badge className={`text-[10px] ${STATUS_COLORS[p.status]}`}>{t('status.' + p.status)}</Badge>
                     <span className="text-[10px] text-stone-400">
                       {p.frequency && /^[a-z0-9_]+$/.test(p.frequency) ? t('freq.' + p.frequency) : p.frequency}
                     </span>
                     {!p.isActive && <Badge variant="outline" className="text-[10px] text-stone-400">{t('common.paused')}</Badge>}
+                    {p.rating != null && (
+                      <span className="text-[10px] text-amber-500 font-medium">
+                        {'★'.repeat(Math.max(0, Math.min(5, p.rating)))}
+                      </span>
+                    )}
+                    {p.inventoryLevel && p.inventoryLevel !== 'unknown' && (
+                      <Badge variant="outline" className={`text-[10px] ${INVENTORY_COLORS[p.inventoryLevel]}`}>
+                        {t('inv.' + p.inventoryLevel)}
+                      </Badge>
+                    )}
+                    {p.tags?.includes('core') && (
+                      <Badge variant="secondary" className="text-[10px] bg-rose-100 text-rose-600">
+                        {t('tag.core')}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-1 ms-2">

@@ -474,6 +474,65 @@ const en = {
   'lang.choose': 'Choose language',
   'lang.en': 'English',
   'lang.he': 'עברית',
+
+  // Agent (Luna)
+  'agent.name': 'Luna',
+  'agent.subtitle': 'Your skincare companion',
+  'agent.greetingTitle': 'Hi, I\'m Luna ✨',
+  'agent.greetingBody': 'Ask me to plan your morning or evening routine, log that you did it, add products, or get recommendations.',
+  'agent.inputPlaceholder': 'Message Luna…',
+  'agent.quick.morning': 'Plan my morning routine',
+  'agent.quick.evening': 'Plan my evening routine',
+  'agent.quick.didMorning': 'I did my morning routine',
+  'agent.quick.recommend': 'Recommend a product',
+  'agent.quick.addProduct': 'Add a product',
+  'agent.act.added': 'Added',
+  'agent.act.updated': 'Updated',
+  'agent.act.productNotFound': 'Couldn\'t find that product',
+  'agent.act.loggedAm': 'Logged your morning routine',
+  'agent.act.loggedPm': 'Logged your evening routine',
+  'agent.act.loggedBoth': 'Logged your routine',
+  'agent.act.stepAmAdded': 'Added to morning routine:',
+  'agent.act.stepPmAdded': 'Added to evening routine:',
+  'agent.act.myRoutine': 'My Routine',
+  'agent.act.rotationAdvanced': 'Moved to the next night',
+  'agent.act.journalAdded': 'Saved to your journal',
+  'agent.act.decisionLogged': 'Logged your decision',
+  'agent.act.insightRecorded': 'Saved an insight',
+  'agent.act.currentStateUpdated': 'Updated your current state',
+
+  // Home — current state & rotation
+  'home.currentState': 'Current State',
+  'home.barrier': 'Barrier',
+  'home.hydration': 'Hydration',
+  'home.priorities': 'Priorities',
+  'home.tonight': 'Tonight',
+  'home.nextNight': 'Next',
+  'home.skipNight': 'Skip to next night',
+
+  // Inventory levels
+  'inv.new': 'New',
+  'inv.medium': 'Medium',
+  'inv.low': 'Low',
+  'inv.empty': 'Empty',
+
+  // Product tags
+  'tag.core': 'Core',
+
+  // Routine — conditional protocols
+  'routine.whenNeeded': 'When Needed',
+
+  // Journal
+  'journal.title': 'Journal',
+  'journal.subtitle': 'Milestones, decisions & insights',
+  'journal.insightsSub': 'Your skincare history & decisions',
+  'journal.empty': 'Nothing here yet — Luna can add entries as you go.',
+  'journal.all': 'All',
+  'journal.journal': 'Journal',
+  'journal.decision': 'Decision',
+  'journal.decisions': 'Decisions',
+  'journal.insight': 'Insight',
+  'journal.insights': 'Insights',
 };
 
 const he: Record<string, string> = {
@@ -950,6 +1009,65 @@ const he: Record<string, string> = {
   'lang.choose': 'בחר/י שפה',
   'lang.en': 'English',
   'lang.he': 'עברית',
+
+  // Agent (Luna)
+  'agent.name': 'לונה',
+  'agent.subtitle': 'העוזרת האישית שלך לטיפוח',
+  'agent.greetingTitle': 'היי, אני לונה ✨',
+  'agent.greetingBody': 'בקש/י ממני לתכנן את שגרת הבוקר או הערב, לתעד שביצעת אותה, להוסיף מוצרים או לקבל המלצות.',
+  'agent.inputPlaceholder': 'הודעה ללונה…',
+  'agent.quick.morning': 'תכנני לי שגרת בוקר',
+  'agent.quick.evening': 'תכנני לי שגרת ערב',
+  'agent.quick.didMorning': 'ביצעתי את שגרת הבוקר',
+  'agent.quick.recommend': 'המליצי על מוצר',
+  'agent.quick.addProduct': 'הוספת מוצר',
+  'agent.act.added': 'נוסף',
+  'agent.act.updated': 'עודכן',
+  'agent.act.productNotFound': 'לא הצלחתי למצוא את המוצר',
+  'agent.act.loggedAm': 'שגרת הבוקר תועדה',
+  'agent.act.loggedPm': 'שגרת הערב תועדה',
+  'agent.act.loggedBoth': 'השגרה תועדה',
+  'agent.act.stepAmAdded': 'נוסף לשגרת הבוקר:',
+  'agent.act.stepPmAdded': 'נוסף לשגרת הערב:',
+  'agent.act.myRoutine': 'השגרה שלי',
+  'agent.act.rotationAdvanced': 'עברנו ללילה הבא',
+  'agent.act.journalAdded': 'נשמר ביומן שלך',
+  'agent.act.decisionLogged': 'ההחלטה תועדה',
+  'agent.act.insightRecorded': 'תובנה נשמרה',
+  'agent.act.currentStateUpdated': 'המצב הנוכחי עודכן',
+
+  // Home — current state & rotation
+  'home.currentState': 'מצב נוכחי',
+  'home.barrier': 'מחסום',
+  'home.hydration': 'לחות',
+  'home.priorities': 'עדיפויות',
+  'home.tonight': 'הערב',
+  'home.nextNight': 'הבא',
+  'home.skipNight': 'דלג/י ללילה הבא',
+
+  // Inventory levels
+  'inv.new': 'חדש',
+  'inv.medium': 'בינוני',
+  'inv.low': 'נמוך',
+  'inv.empty': 'ריק',
+
+  // Product tags
+  'tag.core': 'בסיסי',
+
+  // Routine — conditional protocols
+  'routine.whenNeeded': 'לפי הצורך',
+
+  // Journal
+  'journal.title': 'יומן',
+  'journal.subtitle': 'אבני דרך, החלטות ותובנות',
+  'journal.insightsSub': 'ההיסטוריה וההחלטות שלך',
+  'journal.empty': 'עדיין ריק — לונה יכולה להוסיף רשומות תוך כדי.',
+  'journal.all': 'הכול',
+  'journal.journal': 'יומן',
+  'journal.decision': 'החלטה',
+  'journal.decisions': 'החלטות',
+  'journal.insight': 'תובנה',
+  'journal.insights': 'תובנות',
 };
 
 export const translations: Record<Locale, Record<string, string>> = { en, he };

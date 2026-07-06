@@ -21,6 +21,25 @@ export type ProductStatus =
 
 export type RoutineTime = 'am' | 'pm' | 'both';
 
+export type InventoryLevel = 'new' | 'medium' | 'low' | 'empty' | 'unknown';
+
+/** Lifecycle / purchase-basket buckets stored on Product.tags. */
+export type ProductTag =
+  | 'core'
+  | 'occasional'
+  | 'finish_first'
+  | 'buy_next'
+  | 'monitor'
+  | 'replace_when_empty';
+
+/**
+ * How a routine participates in the app:
+ *  - 'daily'       → the everyday morning routine
+ *  - 'rotation'    → one of the ordered night-rotation protocols
+ *  - 'conditional' → an override protocol surfaced "when needed" (see `trigger`)
+ */
+export type RoutineKind = 'daily' | 'rotation' | 'conditional';
+
 export type SkinCondition =
   | 'irritation'
   | 'dryness'
@@ -47,6 +66,10 @@ export interface Product {
   purchaseUrl: string;
   imageUrl: string;
   imagePath: string;
+  /** 1–5 personal rating; null/undefined when unrated. */
+  rating?: number | null;
+  inventoryLevel: InventoryLevel;
+  tags: ProductTag[];
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +107,10 @@ export interface RoutineDay {
   id: string;
   dayNumber: number; // legacy; no longer meaningful
   name: string; // e.g. "Retinol Night"
+  /** How this routine participates: daily / rotation / conditional. */
+  kind: RoutineKind;
+  /** For conditional protocols: what triggers them (e.g. "after sea/pool"). */
+  trigger: string;
   amSteps: RoutineStep[];
   pmSteps: RoutineStep[];
   /**
@@ -96,12 +123,75 @@ export interface RoutineDay {
 
 export type Routine = RoutineDay;
 
+/** A single entry in the unified journal timeline. */
+export type JournalKind = 'journal' | 'decision' | 'insight';
+
+export interface JournalEntry {
+  id: string;
+  kind: JournalKind;
+  title: string;
+  body: string;
+  /** For decisions: 'active' | 'permanent' | 'superseded'. Empty otherwise. */
+  status: string;
+  tags: string[];
+  entryDate: string | null; // YYYY-MM-DD
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Living snapshot of the user's current skin status (file 05). */
+export interface CurrentState {
+  skinScore?: number | null; // 0–10
+  barrier?: string;
+  hydration?: string;
+  redness?: string;
+  breakouts?: string;
+  eyes?: string;
+  lips?: string;
+  cyclePhase?: string;
+  currentPriorities?: string[];
+  openFollowups?: string[];
+  updatedAt?: string;
+}
+
+/** Pointer into the ordered night rotation. */
+export interface NightRotation {
+  order: string[]; // routine ids, in rotation order
+  index: number; // position of the *next* night to do
+}
+
 export interface AppState {
   products: Product[];
   dailyLogs: DailyLog[];
   routineDays: RoutineDay[];
   cycleLength: number; // how many days in the rotation
+  journalEntries: JournalEntry[];
+  currentState: CurrentState;
+  nightRotation: NightRotation;
 }
+
+export const INVENTORY_LABELS: Record<InventoryLevel, string> = {
+  new: 'New',
+  medium: 'Medium',
+  low: 'Low',
+  empty: 'Empty',
+  unknown: 'Unknown',
+};
+
+export const PRODUCT_TAG_LABELS: Record<ProductTag, string> = {
+  core: 'Core',
+  occasional: 'Occasional',
+  finish_first: 'Finish First',
+  buy_next: 'Buy Next',
+  monitor: 'Monitor',
+  replace_when_empty: 'Replace When Empty',
+};
+
+export const JOURNAL_KIND_LABELS: Record<JournalKind, string> = {
+  journal: 'Journal',
+  decision: 'Decision',
+  insight: 'Insight',
+};
 
 export const CATEGORY_LABELS: Record<ProductCategory, string> = {
   cleanser: 'Cleanser',

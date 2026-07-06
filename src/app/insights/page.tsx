@@ -21,6 +21,8 @@ import {
   Tooltip,
 } from 'recharts';
 import { format, subDays } from 'date-fns';
+import Link from 'next/link';
+import { BookOpen, ArrowRight } from 'lucide-react';
 import { useLocale } from '@/components/locale-provider';
 
 export default function InsightsPage() {
@@ -102,6 +104,24 @@ export default function InsightsPage() {
   return (
     <AppShell>
       <PageHeader title={t('insights.title')} subtitle={t('insights.basedOn').replace('{n}', String(totalLogs))} />
+
+      {/* Journal link */}
+      <div className="px-5 mb-5">
+        <Link href="/journal">
+          <Card className="border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="pt-4 pb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <BookOpen className="w-5 h-5 text-rose-400" />
+                <div>
+                  <p className="text-sm font-semibold text-stone-700">{t('journal.title')}</p>
+                  <p className="text-xs text-stone-500">{t('journal.insightsSub')}</p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-rose-400 rtl:rotate-180" />
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
 
       {/* Summary stats */}
       <div className="px-5 mb-5">

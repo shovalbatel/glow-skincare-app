@@ -5,9 +5,16 @@ import {
   DailyLog,
   RoutineDay,
   RoutineStep,
+  RoutineKind,
   ProductCategory,
+  ProductTag,
+  InventoryLevel,
   SkinCondition,
   SkinFeeling,
+  JournalEntry,
+  JournalKind,
+  CurrentState,
+  NightRotation,
 } from './types';
 
 // ---------- Row ↔ Type mappers ----------
@@ -27,6 +34,9 @@ function mapProduct(row: Record<string, unknown>): Product {
     purchaseUrl: (row.purchase_url as string) || '',
     imageUrl: (row.image_url as string) || '',
     imagePath: (row.image_path as string) || '',
+    rating: (row.rating as number | null) ?? null,
+    inventoryLevel: (row.inventory_level as InventoryLevel) || 'unknown',
+    tags: (row.tags as ProductTag[]) || [],
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -99,10 +109,26 @@ function mapRoutineDay(
     id: row.id as string,
     dayNumber: row.day_number as number,
     name: row.name as string,
+    kind: (row.kind as RoutineKind) || 'rotation',
+    trigger: (row.trigger as string) || '',
     amSteps,
     pmSteps,
     amProducts: amSteps.flatMap((s) => s.productIds),
     pmProducts: pmSteps.flatMap((s) => s.productIds),
+  };
+}
+
+function mapJournalEntry(row: Record<string, unknown>): JournalEntry {
+  return {
+    id: row.id as string,
+    kind: (row.kind as JournalKind) || 'journal',
+    title: (row.title as string) || '',
+    body: (row.body as string) || '',
+    status: (row.status as string) || '',
+    tags: (row.tags as string[]) || [],
+    entryDate: row.entry_date ? (row.entry_date as string).slice(0, 10) : null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
   };
 }
 
@@ -115,11 +141,12 @@ export function flattenStepProducts(steps: RoutineStep[]): string[] {
 export async function loadState(): Promise<AppState> {
   const supabase = createClient();
 
-  const [productsRes, logsRes, routineRes, settingsRes] = await Promise.all([
+  const [productsRes, logsRes, routineRes, settingsRes, journalRes] = await Promise.all([
     supabase.from('products').select('*').order('created_at'),
     supabase.from('daily_logs').select('*').order('date', { ascending: false }),
     supabase.from('routine_days').select('*').order('day_number'),
     supabase.from('user_settings').select('*').limit(1).maybeSingle(),
+    supabase.from('journal_entries').select('*').order('entry_date', { ascending: false }),
   ]);
 
   const products = (productsRes.data || []).map(mapProduct);
@@ -130,7 +157,18 @@ export async function loadState(): Promise<AppState> {
     dailyLogs: (logsRes.data || []).map(mapDailyLog),
     routineDays: (routineRes.data || []).map((r) => mapRoutineDay(r, productById)),
     cycleLength: settingsRes.data?.cycle_length ?? 4,
+    journalEntries: (journalRes.data || []).map(mapJournalEntry),
+    currentState: (settingsRes.data?.current_state as CurrentState) || {},
+    nightRotation: normalizeRotation(settingsRes.data?.night_rotation),
   };
+}
+
+function normalizeRotation(raw: unknown): NightRotation {
+  if (raw && typeof raw === 'object' && Array.isArray((raw as NightRotation).order)) {
+    const r = raw as NightRotation;
+    return { order: r.order, index: typeof r.index === 'number' ? r.index : 0 };
+  }
+  return { order: [], index: 0 };
 }
 
 // ---------- Product operations ----------
@@ -154,6 +192,9 @@ export async function addProduct(
     purchase_url: product.purchaseUrl || '',
     image_url: product.imageUrl || '',
     image_path: product.imagePath || '',
+    rating: product.rating ?? null,
+    inventory_level: product.inventoryLevel || 'unknown',
+    tags: product.tags || [],
   }).select('id').single();
   return data?.id;
 }
@@ -176,6 +217,9 @@ export async function updateProduct(
   if (updates.purchaseUrl !== undefined) row.purchase_url = updates.purchaseUrl;
   if (updates.imageUrl !== undefined) row.image_url = updates.imageUrl;
   if (updates.imagePath !== undefined) row.image_path = updates.imagePath;
+  if (updates.rating !== undefined) row.rating = updates.rating;
+  if (updates.inventoryLevel !== undefined) row.inventory_level = updates.inventoryLevel;
+  if (updates.tags !== undefined) row.tags = updates.tags;
   row.updated_at = new Date().toISOString();
   await supabase.from('products').update(row).eq('id', id);
 }
@@ -259,6 +303,8 @@ export async function updateRoutineDays(
           user_id: userId,
           day_number: d.dayNumber,
           name: d.name,
+          kind: d.kind ?? 'rotation',
+          trigger: d.trigger ?? '',
           // Write both representations so legacy code paths still work
           // until everything is migrated.
           am_products: flattenStepProducts(amSteps),
@@ -286,9 +332,43 @@ export function getRoutinesForTime(
   state: AppState,
   time: 'am' | 'pm'
 ): RoutineDay[] {
-  return state.routineDays.filter((d) =>
-    time === 'am' ? (d.amSteps?.length ?? 0) > 0 : (d.pmSteps?.length ?? 0) > 0
+  // Conditional protocols are surfaced "when needed" only — never part of the
+  // normal AM/PM suggestion set.
+  return state.routineDays.filter(
+    (d) =>
+      d.kind !== 'conditional' &&
+      (time === 'am' ? (d.amSteps?.length ?? 0) > 0 : (d.pmSteps?.length ?? 0) > 0)
   );
+}
+
+/** Conditional override protocols (Sea/Pool, Travel, Irritated, Pre-period…). */
+export function getConditionalRoutines(state: AppState): RoutineDay[] {
+  return state.routineDays.filter((d) => d.kind === 'conditional');
+}
+
+/** The next night to do, per the ordered rotation. Null if no rotation set. */
+export function getNextNight(state: AppState): RoutineDay | null {
+  const { order, index } = state.nightRotation;
+  if (!order || order.length === 0) return null;
+  const id = order[((index % order.length) + order.length) % order.length];
+  return state.routineDays.find((d) => d.id === id) ?? null;
+}
+
+/** Advance the rotation pointer by one (wrapping) and persist it. */
+export async function advanceRotation(
+  userId: string,
+  rotation: NightRotation
+): Promise<NightRotation> {
+  const len = rotation.order.length || 1;
+  const next: NightRotation = {
+    order: rotation.order,
+    index: (rotation.index + 1) % len,
+  };
+  const supabase = createClient();
+  await supabase
+    .from('user_settings')
+    .upsert({ user_id: userId, night_rotation: next }, { onConflict: 'user_id' });
+  return next;
 }
 
 const LAST_USED_KEY = (time: 'am' | 'pm') => `dailyRoutine.lastUsed.${time}`;
@@ -320,6 +400,11 @@ export function getSuggestedRoutine(
   state: AppState,
   time: 'am' | 'pm'
 ): RoutineDay | null {
+  // For the evening, follow the night rotation when one is configured.
+  if (time === 'pm') {
+    const next = getNextNight(state);
+    if (next) return next;
+  }
   const candidates = getRoutinesForTime(state, time);
   if (candidates.length === 0) return null;
   const lastId = readLastUsedRoutineId(time);
@@ -512,4 +597,85 @@ export async function fetchRecommendation(userId: string): Promise<{
     productPicks: data.product_picks,
     createdAt: data.created_at as string,
   };
+}
+
+// ---------- Journal entries (journal / decisions / insights) ----------
+
+export async function fetchJournalEntries(userId: string): Promise<JournalEntry[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .eq('user_id', userId)
+    .order('entry_date', { ascending: false });
+  return (data || []).map(mapJournalEntry);
+}
+
+export async function addJournalEntry(
+  userId: string,
+  entry: {
+    kind: JournalKind;
+    title?: string;
+    body: string;
+    status?: string;
+    tags?: string[];
+    entryDate?: string | null;
+  }
+): Promise<string | undefined> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('journal_entries')
+    .insert({
+      user_id: userId,
+      kind: entry.kind,
+      title: entry.title ?? '',
+      body: entry.body,
+      status: entry.status ?? '',
+      tags: entry.tags ?? [],
+      entry_date: entry.entryDate ?? null,
+    })
+    .select('id')
+    .single();
+  return data?.id;
+}
+
+export async function updateJournalEntry(
+  id: string,
+  updates: Partial<Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'>>
+): Promise<void> {
+  const supabase = createClient();
+  const row: Record<string, unknown> = {};
+  if (updates.kind !== undefined) row.kind = updates.kind;
+  if (updates.title !== undefined) row.title = updates.title;
+  if (updates.body !== undefined) row.body = updates.body;
+  if (updates.status !== undefined) row.status = updates.status;
+  if (updates.tags !== undefined) row.tags = updates.tags;
+  if (updates.entryDate !== undefined) row.entry_date = updates.entryDate;
+  row.updated_at = new Date().toISOString();
+  await supabase.from('journal_entries').update(row).eq('id', id);
+}
+
+// ---------- Current-state snapshot + night rotation ----------
+
+export async function saveCurrentState(
+  userId: string,
+  state: CurrentState
+): Promise<void> {
+  const supabase = createClient();
+  await supabase
+    .from('user_settings')
+    .upsert(
+      { user_id: userId, current_state: { ...state, updatedAt: new Date().toISOString() } },
+      { onConflict: 'user_id' }
+    );
+}
+
+export async function saveNightRotation(
+  userId: string,
+  rotation: NightRotation
+): Promise<void> {
+  const supabase = createClient();
+  await supabase
+    .from('user_settings')
+    .upsert({ user_id: userId, night_rotation: rotation }, { onConflict: 'user_id' });
 }
