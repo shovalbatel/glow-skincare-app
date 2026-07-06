@@ -47,10 +47,11 @@ function systemPrompt(context: unknown): string {
 LANGUAGE: The user's app language is ${languageName}. ALWAYS write every reply in ${languageName}, regardless of the language these instructions are written in. If the user switches and writes in a different language, reply in the language the user just used. Never mix languages within a reply. Product and brand names may stay in their original spelling.
 
 WHAT YOU CAN DO FOR THE USER:
+- Fully manage ROUTINES: create, rename, and delete routines; add or remove steps; attach/replace the product on a step. Routines can be morning, evening, or conditional "when needed" protocols.
 - Help plan their MORNING (am) or EVENING (pm) routine, step by step.
 - Log that they completed a routine today ("I did my morning routine").
 - Track their night ROTATION (an ordered list of night protocols) and tell them which night is next; advance it when they finish a night.
-- Add products to their product list, or update a product's status / rating / inventory level / notes.
+- Fully manage PRODUCTS: add, update (status / rating / inventory level / tags / notes / time of use), delete products, or find a product photo from the web (find_product_photo) for products without an image.
 - Recommend specific real products they can buy.
 - Keep their skincare knowledge base: add JOURNAL entries (milestones/events), record DECISIONS (with a reason), and capture INSIGHTS (things learned about their skin).
 - Update their CURRENT STATE snapshot (skin score, barrier, hydration, priorities, follow-ups…).
@@ -198,7 +199,7 @@ const TOOLS = [
     function: {
       name: 'add_routine_step',
       description:
-        "Add a step to the user's morning (am) or evening (pm) routine. Optionally attach a product the user already owns by name. If no matching product is found the step is added empty and you should offer to add a product for it.",
+        "Add a step to a routine (morning/evening). Optionally attach a product the user already owns by name. If no matching product is found the step is added empty and you should offer to add a product for it.",
       parameters: {
         type: 'object',
         properties: {
@@ -208,8 +209,124 @@ const TOOLS = [
             type: 'string',
             description: 'Name of a product the user owns to attach to this step. Optional.',
           },
+          routineName: {
+            type: 'string',
+            description: 'Which routine to add the step to (e.g. "Paula Night"). Omit to target the suggested routine for that time.',
+          },
         },
         required: ['time', 'category'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_routine',
+      description:
+        'Create a new named routine. Use time to say whether it is a morning or evening routine. Provide a trigger to make it a conditional "when needed" protocol (e.g. "after sea/pool").',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Routine name, e.g. "Retinol Night".' },
+          time: { type: 'string', enum: ['am', 'pm'], description: 'Morning or evening routine.' },
+          trigger: {
+            type: 'string',
+            description: 'Optional — if set, this becomes a conditional protocol with this trigger.',
+          },
+        },
+        required: ['name', 'time'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rename_routine',
+      description: 'Rename an existing routine.',
+      parameters: {
+        type: 'object',
+        properties: {
+          routineName: { type: 'string', description: 'Current name of the routine.' },
+          newName: { type: 'string', description: 'New name.' },
+        },
+        required: ['routineName', 'newName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_routine',
+      description: 'Delete a routine entirely. Confirm with the user first if unsure.',
+      parameters: {
+        type: 'object',
+        properties: {
+          routineName: { type: 'string', description: 'Name of the routine to delete.' },
+        },
+        required: ['routineName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove_routine_step',
+      description: "Remove a step (by its category) from a routine's morning or evening list.",
+      parameters: {
+        type: 'object',
+        properties: {
+          routineName: { type: 'string', description: 'Name of the routine.' },
+          time: { type: 'string', enum: ['am', 'pm'] },
+          category: { type: 'string', enum: [...VALID_CATEGORIES], description: 'Category of the step to remove.' },
+        },
+        required: ['routineName', 'time', 'category'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_step_product',
+      description:
+        "Attach or replace the product on a routine step (identified by category). The product must already be in the user's library; if it isn't, add it first with add_product.",
+      parameters: {
+        type: 'object',
+        properties: {
+          routineName: { type: 'string', description: 'Name of the routine.' },
+          time: { type: 'string', enum: ['am', 'pm'] },
+          category: { type: 'string', enum: [...VALID_CATEGORIES] },
+          productName: { type: 'string', description: 'Product to attach (must exist in the library).' },
+        },
+        required: ['routineName', 'time', 'category', 'productName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_product',
+      description: 'Remove a product from the library. Identify it by id (preferred) or name. Confirm with the user first if unsure.',
+      parameters: {
+        type: 'object',
+        properties: {
+          productId: { type: 'string' },
+          productName: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'find_product_photo',
+      description:
+        "Find a product photo from the web and attach it to a product that has no image yet. Identify the product by id or name.",
+      parameters: {
+        type: 'object',
+        properties: {
+          productId: { type: 'string' },
+          productName: { type: 'string' },
+        },
       },
     },
   },
