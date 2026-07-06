@@ -94,6 +94,8 @@ const en = {
 
   // Products
   'products.title': 'Products',
+  'products.findPhoto': 'Find photo',
+  'products.photoNotFound': "Couldn't find a photo on the web",
   'products.search': 'Search products...',
   'products.allStatus': 'All Status',
   'products.allTimes': 'All Times',
@@ -500,6 +502,16 @@ const en = {
   'agent.act.decisionLogged': 'Logged your decision',
   'agent.act.insightRecorded': 'Saved an insight',
   'agent.act.currentStateUpdated': 'Updated your current state',
+  'agent.act.routineNotFound': "Couldn't find that routine",
+  'agent.act.routineCreated': 'Created routine',
+  'agent.act.routineRenamed': 'Renamed routine to',
+  'agent.act.routineDeleted': 'Deleted routine',
+  'agent.act.stepNotFound': "Couldn't find that step",
+  'agent.act.stepRemoved': 'Removed step',
+  'agent.act.stepProductSet': 'Set step product to',
+  'agent.act.productDeleted': 'Deleted product',
+  'agent.act.photoFound': 'Added a photo to',
+  'agent.act.photoNotFound': "Couldn't find a photo",
 
   // Home — current state & rotation
   'home.currentState': 'Current State',
@@ -629,6 +641,8 @@ const he: Record<string, string> = {
 
   // Products
   'products.title': 'מוצרים',
+  'products.findPhoto': 'חיפוש תמונה',
+  'products.photoNotFound': 'לא נמצאה תמונה ברשת',
   'products.search': 'חיפוש מוצרים...',
   'products.allStatus': 'כל הסטטוסים',
   'products.allTimes': 'כל הזמנים',
@@ -1035,6 +1049,16 @@ const he: Record<string, string> = {
   'agent.act.decisionLogged': 'ההחלטה תועדה',
   'agent.act.insightRecorded': 'תובנה נשמרה',
   'agent.act.currentStateUpdated': 'המצב הנוכחי עודכן',
+  'agent.act.routineNotFound': 'לא הצלחתי למצוא את השגרה',
+  'agent.act.routineCreated': 'נוצרה שגרה',
+  'agent.act.routineRenamed': 'שם השגרה שונה ל',
+  'agent.act.routineDeleted': 'השגרה נמחקה',
+  'agent.act.stepNotFound': 'לא הצלחתי למצוא את השלב',
+  'agent.act.stepRemoved': 'השלב הוסר',
+  'agent.act.stepProductSet': 'המוצר לשלב עודכן ל',
+  'agent.act.productDeleted': 'המוצר נמחק',
+  'agent.act.photoFound': 'נוספה תמונה ל',
+  'agent.act.photoNotFound': 'לא נמצאה תמונה',
 
   // Home — current state & rotation
   'home.currentState': 'מצב נוכחי',

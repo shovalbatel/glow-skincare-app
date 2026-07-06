@@ -11,6 +11,7 @@ import {
   JournalEntry,
   JournalKind,
   CurrentState,
+  NightRotation,
 } from '@/lib/types';
 import {
   loadState,
@@ -22,6 +23,7 @@ import {
   addJournalEntry as storeAddJournalEntry,
   updateJournalEntry as storeUpdateJournalEntry,
   saveCurrentState as storeSaveCurrentState,
+  saveNightRotation as storeSaveNightRotation,
   advanceRotation as storeAdvanceRotation,
   checkOnboardingStatus,
 } from '@/lib/store';
@@ -148,6 +150,15 @@ export function useAppState() {
     await refresh();
   }, [user, state, refresh]);
 
+  const doSaveNightRotation = useCallback(
+    async (rotation: NightRotation) => {
+      if (!user) return;
+      await storeSaveNightRotation(user.id, rotation);
+      await refresh();
+    },
+    [user, refresh]
+  );
+
   return {
     state,
     refresh,
@@ -160,5 +171,6 @@ export function useAppState() {
     updateJournalEntry: doUpdateJournalEntry,
     saveCurrentState: doSaveCurrentState,
     advanceRotation: doAdvanceRotation,
+    saveNightRotation: doSaveNightRotation,
   };
 }
