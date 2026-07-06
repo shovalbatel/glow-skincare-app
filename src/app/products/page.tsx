@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Plus, Search, Sun, Moon, SunMoon, Pencil, Trash2, ImageIcon } from 'lucide-react';
+import { Plus, Search, Sun, Moon, SunMoon, Pencil, Trash2, ImageIcon, Loader2 } from 'lucide-react';
 import { ProductForm, SmartAddSheet } from '@/components/product-add-flow';
 import {
   Product,
@@ -40,6 +40,30 @@ export default function ProductsPage() {
   const [filterTime, setFilterTime] = useState<string>('all');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [fetchingPhotoId, setFetchingPhotoId] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  const findPhoto = async (p: Product) => {
+    setFetchingPhotoId(p.id);
+    setPhotoError(null);
+    try {
+      const res = await fetch('/api/find-product-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: p.name, brand: p.brand }),
+      });
+      const data = await res.json();
+      if (res.ok && data.imageUrl) {
+        await updateProduct(p.id, { imageUrl: data.imageUrl });
+      } else {
+        setPhotoError(data.error || t('products.photoNotFound'));
+      }
+    } catch {
+      setPhotoError(t('products.photoNotFound'));
+    } finally {
+      setFetchingPhotoId(null);
+    }
+  };
 
   if (!state) return <AppShell><div className="flex items-center justify-center h-screen"><div className="animate-pulse text-rose-300">{t('common.loading')}</div></div></AppShell>;
 
@@ -110,6 +134,14 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {photoError && (
+        <div className="px-5 mb-3">
+          <div className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg py-2 px-3">
+            {photoError}
+          </div>
+        </div>
+      )}
+
       <div className="px-5 space-y-3">
         {filtered.map((p) => (
           <Card key={p.id} className={`border-rose-100 shadow-sm ${!p.isActive ? 'opacity-60' : ''}`}>
@@ -120,7 +152,22 @@ export default function ProductsPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
                   ) : (
-                    <ImageIcon className="w-5 h-5 text-rose-200" />
+                    <button
+                      type="button"
+                      onClick={() => findPhoto(p)}
+                      disabled={fetchingPhotoId === p.id}
+                      title={t('products.findPhoto')}
+                      className="w-full h-full flex flex-col items-center justify-center gap-0.5 text-rose-300 hover:text-rose-500 hover:bg-rose-100/50 transition-colors"
+                    >
+                      {fetchingPhotoId === p.id ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <ImageIcon className="w-4 h-4" />
+                          <span className="text-[8px] font-medium leading-none">{t('products.findPhoto')}</span>
+                        </>
+                      )}
+                    </button>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">

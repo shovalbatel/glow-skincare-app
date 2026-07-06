@@ -72,11 +72,13 @@ export default function AgentPage() {
     refresh,
     addProduct,
     updateProduct,
+    deleteProduct,
     saveLog,
     updateRoutine,
     addJournalEntry,
     saveCurrentState,
     advanceRotation,
+    saveNightRotation,
   } = useAppState();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -161,6 +163,28 @@ export default function AgentPage() {
       products.find((p) => p.name.toLowerCase() === q) ||
       products.find((p) => p.name.toLowerCase().includes(q) || q.includes(p.name.toLowerCase())) ||
       products.find((p) => `${p.brand} ${p.name}`.toLowerCase().includes(q))
+    );
+  };
+
+  // ---- Fuzzy match a routine by name ----
+  const matchRoutine = (days: RoutineDay[], query?: string): RoutineDay | undefined => {
+    if (!query) return undefined;
+    const q = query.trim().toLowerCase();
+    if (!q) return undefined;
+    return (
+      days.find((d) => d.name.toLowerCase() === q) ||
+      days.find((d) => d.name.toLowerCase().includes(q) || q.includes(d.name.toLowerCase()))
+    );
+  };
+
+  /** Persist a modified routine list, keeping the flattened product arrays in sync. */
+  const persistRoutines = async (days: RoutineDay[]) => {
+    await updateRoutine(
+      days.map((d) => ({
+        ...d,
+        amProducts: flattenStepProducts(d.amSteps ?? []),
+        pmProducts: flattenStepProducts(d.pmSteps ?? []),
+      }))
     );
   };
 
@@ -286,7 +310,13 @@ export default function AgentPage() {
       };
 
       let days = fresh.routineDays;
-      let target: RoutineDay | undefined = getSuggestedRoutine(fresh, time) ?? days[0];
+      // Target a named routine when given, else the suggested routine for the slot.
+      let target: RoutineDay | undefined = args.routineName
+        ? matchRoutine(days, args.routineName as string)
+        : getSuggestedRoutine(fresh, time) ?? days[0];
+      if (args.routineName && !target) {
+        return { ok: false, summary: t('agent.act.routineNotFound') };
+      }
       if (!target) {
         target = {
           id: newRoutineId(),
@@ -324,6 +354,122 @@ export default function AgentPage() {
           ? `Attached product "${matched.name}".`
           : 'No matching product in library; step added with no product attached.',
       };
+    }
+
+    if (name === 'create_routine') {
+      const rName = String(args.name ?? '').trim();
+      if (!rName) return { ok: false, summary: 'No routine name given' };
+      const time = (args.time === 'pm' ? 'pm' : 'am') as 'am' | 'pm';
+      const trigger = String(args.trigger ?? '').trim();
+      const fresh = await loadState();
+      const routine: RoutineDay = {
+        id: newRoutineId(),
+        dayNumber: fresh.routineDays.length + 1,
+        name: rName,
+        kind: trigger ? 'conditional' : time === 'am' ? 'daily' : 'rotation',
+        trigger,
+        amSteps: [],
+        pmSteps: [],
+        amProducts: [],
+        pmProducts: [],
+      };
+      await persistRoutines([...fresh.routineDays, routine]);
+      return { ok: true, summary: `${t('agent.act.routineCreated')} ${rName}` };
+    }
+
+    if (name === 'rename_routine') {
+      const newName = String(args.newName ?? '').trim();
+      const fresh = await loadState();
+      const target = matchRoutine(fresh.routineDays, args.routineName as string);
+      if (!target) return { ok: false, summary: t('agent.act.routineNotFound') };
+      if (!newName) return { ok: false, summary: 'No new name given' };
+      await persistRoutines(
+        fresh.routineDays.map((d) => (d.id === target.id ? { ...d, name: newName } : d))
+      );
+      return { ok: true, summary: `${t('agent.act.routineRenamed')} ${newName}` };
+    }
+
+    if (name === 'delete_routine') {
+      const fresh = await loadState();
+      const target = matchRoutine(fresh.routineDays, args.routineName as string);
+      if (!target) return { ok: false, summary: t('agent.act.routineNotFound') };
+      await persistRoutines(fresh.routineDays.filter((d) => d.id !== target.id));
+      // Keep the night rotation clean if the deleted routine was part of it.
+      const order = fresh.nightRotation.order ?? [];
+      if (order.includes(target.id)) {
+        const newOrder = order.filter((id) => id !== target.id);
+        const newIndex = newOrder.length ? fresh.nightRotation.index % newOrder.length : 0;
+        await saveNightRotation({ order: newOrder, index: newIndex });
+      }
+      return { ok: true, summary: `${t('agent.act.routineDeleted')} ${target.name}` };
+    }
+
+    if (name === 'remove_routine_step') {
+      const time = (args.time === 'pm' ? 'pm' : 'am') as 'am' | 'pm';
+      const category = args.category as ProductCategory;
+      const fresh = await loadState();
+      const target = matchRoutine(fresh.routineDays, args.routineName as string);
+      if (!target) return { ok: false, summary: t('agent.act.routineNotFound') };
+      const key = time === 'am' ? 'amSteps' : 'pmSteps';
+      const steps = (target[key] ?? []) as RoutineStep[];
+      const idx = steps.findIndex((s) => s.category === category);
+      if (idx === -1) return { ok: false, summary: t('agent.act.stepNotFound') };
+      const nextSteps = steps.filter((_, i) => i !== idx);
+      await persistRoutines(
+        fresh.routineDays.map((d) => (d.id === target.id ? { ...d, [key]: nextSteps } : d))
+      );
+      return { ok: true, summary: `${t('agent.act.stepRemoved')} ${t('cat.' + category)}` };
+    }
+
+    if (name === 'set_step_product') {
+      const time = (args.time === 'pm' ? 'pm' : 'am') as 'am' | 'pm';
+      const category = args.category as ProductCategory;
+      const fresh = await loadState();
+      const target = matchRoutine(fresh.routineDays, args.routineName as string);
+      if (!target) return { ok: false, summary: t('agent.act.routineNotFound') };
+      const product = matchProduct(fresh.products, args.productName as string | undefined);
+      if (!product) return { ok: false, summary: t('agent.act.productNotFound') };
+      const key = time === 'am' ? 'amSteps' : 'pmSteps';
+      const steps = [...((target[key] ?? []) as RoutineStep[])];
+      const idx = steps.findIndex((s) => s.category === category);
+      if (idx === -1) {
+        steps.push({ id: newStepId(), category, productIds: [product.id] });
+      } else {
+        steps[idx] = { ...steps[idx], productIds: [product.id] };
+      }
+      await persistRoutines(
+        fresh.routineDays.map((d) => (d.id === target.id ? { ...d, [key]: steps } : d))
+      );
+      return { ok: true, summary: `${t('agent.act.stepProductSet')} ${product.name}` };
+    }
+
+    if (name === 'delete_product') {
+      const fresh = await loadState();
+      const target =
+        fresh.products.find((p) => p.id === args.productId) ||
+        matchProduct(fresh.products, args.productName as string | undefined);
+      if (!target) return { ok: false, summary: t('agent.act.productNotFound') };
+      await deleteProduct(target.id);
+      return { ok: true, summary: `${t('agent.act.productDeleted')} ${target.name}` };
+    }
+
+    if (name === 'find_product_photo') {
+      const fresh = await loadState();
+      const target =
+        fresh.products.find((p) => p.id === args.productId) ||
+        matchProduct(fresh.products, args.productName as string | undefined);
+      if (!target) return { ok: false, summary: t('agent.act.productNotFound') };
+      const res = await fetch('/api/find-product-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: target.name, brand: target.brand }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.imageUrl) {
+        return { ok: false, summary: t('agent.act.photoNotFound'), detail: data.error };
+      }
+      await updateProduct(target.id, { imageUrl: data.imageUrl });
+      return { ok: true, summary: `${t('agent.act.photoFound')} ${target.name}` };
     }
 
     if (name === 'advance_rotation') {
