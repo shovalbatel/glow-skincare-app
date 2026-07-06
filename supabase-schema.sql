@@ -170,3 +170,57 @@ create policy "Users delete own product photos"
     bucket_id = 'product-photos'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- ============================================================================
+-- 8. Skin Journal import — richer product/routine data + journal knowledge base
+--    (idempotent: safe to run on existing installs)
+-- ============================================================================
+
+-- 8a. Products: rating, inventory level, and free-form tags
+--     (tags hold lifecycle/purchase buckets: core, occasional, finish_first,
+--      buy_next, monitor, replace_when_empty)
+alter table products
+  add column if not exists rating smallint,
+  add column if not exists inventory_level text not null default 'unknown',
+  add column if not exists tags text[] not null default '{}';
+
+-- 8b. Routine days: kind + trigger
+--     kind: 'daily' (morning routine) | 'rotation' (the night rotation) |
+--           'conditional' (override protocols surfaced "when needed")
+--     trigger: for conditional protocols, e.g. 'after sea/pool', 'travel',
+--              'irritated skin', 'pre-period'
+alter table routine_days
+  add column if not exists kind text not null default 'rotation',
+  add column if not exists trigger text not null default '';
+
+-- 8c. Journal entries — unified timeline for journal milestones, decisions,
+--     and insights (the flexible "knowledge base" from the hybrid design)
+create table if not exists journal_entries (
+  id text primary key default gen_random_uuid()::text,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  kind text not null default 'journal',        -- 'journal' | 'decision' | 'insight'
+  title text not null default '',
+  body text not null default '',
+  status text not null default '',             -- decisions: 'active'|'permanent'|'superseded'
+  tags text[] not null default '{}',
+  entry_date date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table journal_entries enable row level security;
+do $$ begin
+  create policy "Users manage own journal entries" on journal_entries
+    for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+create index if not exists idx_journal_entries_user_date
+  on journal_entries(user_id, entry_date);
+
+-- 8d. User settings: living Current-State snapshot + night-rotation pointer
+--     current_state: { skinScore, barrier, hydration, redness, breakouts,
+--                      eyes, lips, cyclePhase, currentPriorities[],
+--                      openFollowups[], updatedAt }
+--     night_rotation: { order: [routineId, ...], index: number }
+alter table user_settings
+  add column if not exists current_state jsonb not null default '{}'::jsonb,
+  add column if not exists night_rotation jsonb not null default '{}'::jsonb;

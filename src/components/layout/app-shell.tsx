@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import { BottomNav } from './bottom-nav';
+import { AgentFab } from '@/components/agent/agent-fab';
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="max-w-lg mx-auto pb-32">
         {children}
       </main>
+      <AgentFab />
       <BottomNav />
     </div>
   );

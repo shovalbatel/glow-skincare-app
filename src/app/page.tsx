@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageHeader } from '@/components/layout/page-header';
 import { useAppState } from '@/hooks/use-app-state';
-import { getSuggestedRoutine, getProductById, getLogByDate } from '@/lib/store';
+import { getSuggestedRoutine, getProductById, getLogByDate, getNextNight } from '@/lib/store';
 import { format, subDays, addDays } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,8 @@ import {
   ChevronRight,
   ImageIcon,
   Pencil,
+  Heart,
+  SkipForward,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -26,7 +28,7 @@ import { SKIN_CONDITION_ICONS, RoutineStep, Product, ProductCategory } from '@/l
 import { useLocale } from '@/components/locale-provider';
 
 export default function HomePage() {
-  const { state } = useAppState();
+  const { state, advanceRotation } = useAppState();
   const { t } = useLocale();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
@@ -46,6 +48,10 @@ export default function HomePage() {
   const amRoutine = getSuggestedRoutine(state, 'am');
   const pmRoutine = getSuggestedRoutine(state, 'pm');
   const dayLog = getLogByDate(state, selectedDate);
+  const nextNight = getNextNight(state);
+  const cs = state.currentState;
+  const hasCurrentState =
+    cs && (cs.skinScore != null || !!cs.barrier || (cs.currentPriorities?.length ?? 0) > 0);
 
   const amRoutineSteps = amRoutine?.amSteps || [];
   const pmRoutineSteps = pmRoutine?.pmSteps || [];
@@ -255,6 +261,91 @@ export default function HomePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Current skin state snapshot */}
+      {hasCurrentState && (
+        <div className="px-5 mb-5">
+          <Card className="border-rose-100 shadow-sm overflow-hidden">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Heart className="w-4 h-4 text-rose-500" />
+                <span className="text-sm font-semibold text-stone-700 uppercase tracking-wider">
+                  {t('home.currentState')}
+                </span>
+                {cs.skinScore != null && (
+                  <span className="ms-auto flex items-baseline gap-0.5">
+                    <span className="text-2xl font-semibold text-rose-600">{cs.skinScore}</span>
+                    <span className="text-xs text-stone-400">/10</span>
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {cs.barrier && (
+                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 text-[11px]">
+                    {t('home.barrier')}: {cs.barrier}
+                  </Badge>
+                )}
+                {cs.hydration && (
+                  <Badge variant="secondary" className="bg-sky-100 text-sky-700 text-[11px]">
+                    {t('home.hydration')}: {cs.hydration}
+                  </Badge>
+                )}
+                {cs.cyclePhase && (
+                  <Badge variant="secondary" className="bg-violet-100 text-violet-700 text-[11px]">
+                    {cs.cyclePhase}
+                  </Badge>
+                )}
+              </div>
+              {(cs.currentPriorities?.length ?? 0) > 0 && (
+                <div className="mt-1">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-stone-400 mb-1">
+                    {t('home.priorities')}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {cs.currentPriorities!.slice(0, 3).map((p, i) => (
+                      <li key={i} className="text-xs text-stone-600 flex items-start gap-1.5">
+                        <span className="text-rose-400 mt-0.5">•</span>
+                        <span>{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Tonight's rotation */}
+      {nextNight && (
+        <div className="px-5 mb-5">
+          <Card className="border-indigo-100 bg-gradient-to-r from-indigo-50/60 to-violet-50/60 shadow-sm">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <Moon className="w-4 h-4 text-indigo-500" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-indigo-400">
+                    {t('home.tonight')}
+                  </p>
+                  <p className="text-sm font-semibold text-stone-700 truncate">{nextNight.name}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => advanceRotation()}
+                  className="h-8 text-[11px] text-indigo-500 hover:text-indigo-600 hover:bg-indigo-100/60 gap-1 px-2 flex-shrink-0"
+                  title={t('home.skipNight')}
+                >
+                  <SkipForward className="w-3.5 h-3.5 rtl:-scale-x-100" />
+                  {t('home.nextNight')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Day's routine / log display */}
       {(hasRoutine || hasAmContent || hasPmContent) && (
