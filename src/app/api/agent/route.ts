@@ -447,15 +447,28 @@ function normalizeToolArgs(message: ChatMsg): ChatMsg {
 
 async function callGroq(
   apiKey: string,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  retriesOn429 = 1
 ): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  return { ok: res.ok, status: res.status, json };
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+    // Groq enforces a tokens-per-minute limit. On 429 it tells us how long to
+    // wait ("try again in 8.6s") — honour it once so bursts self-heal.
+    if (res.status === 429 && attempt < retriesOn429) {
+      const msg = (json?.error as { message?: string })?.message || '';
+      const m = msg.match(/try again in ([0-9.]+)s/i);
+      const waitMs = Math.min(m ? parseFloat(m[1]) + 0.5 : 3, 12) * 1000;
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+    return { ok: res.ok, status: res.status, json };
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -488,27 +501,40 @@ export async function POST(request: NextRequest) {
     const baseBody = {
       model: MODEL,
       messages: [{ role: 'system', content: systemPrompt(context) }, ...cleanMessages],
-      max_tokens: 1200,
+      max_tokens: 700,
       temperature: 0.5,
     };
 
-    // Attempt with tools, retrying once — Groq tool-call generation is
-    // occasionally flaky and usually succeeds on a second try.
-    let result = await callGroq(apiKey, { ...baseBody, tools: TOOLS, tool_choice: 'auto' });
-    if (!result.ok) {
-      result = await callGroq(apiKey, { ...baseBody, tools: TOOLS, tool_choice: 'auto' });
-    }
+    // When the last message is a tool result, this is a follow-up call where
+    // Luna just phrases a confirmation — it doesn't need the tools list.
+    // Omitting it roughly halves the tokens of that call, keeping a full action
+    // (tool call + confirmation) under the tokens-per-minute budget.
+    const lastRole = cleanMessages[cleanMessages.length - 1]?.role;
+    const wantTools = lastRole !== 'tool';
 
-    // Last resort: answer without tools so the user still gets a reply instead
-    // of a hard error. (No action is taken this turn.)
-    if (!result.ok) {
-      const errMsg = (result.json?.error as { message?: string })?.message;
-      console.error('[agent] tool generation failed, falling back to no-tools:', errMsg);
-      const fallback = await callGroq(apiKey, baseBody);
-      if (fallback.ok) {
-        result = fallback;
-      } else {
-        throw new Error(errMsg || `Groq error: ${result.status}`);
+    let result;
+    if (wantTools) {
+      // Attempt with tools, retrying once — tool-call generation is
+      // occasionally flaky and usually succeeds on a second try.
+      result = await callGroq(apiKey, { ...baseBody, tools: TOOLS, tool_choice: 'auto' });
+      if (!result.ok) {
+        result = await callGroq(apiKey, { ...baseBody, tools: TOOLS, tool_choice: 'auto' });
+      }
+      // Last resort: answer without tools so the user still gets a reply
+      // instead of a hard error. (No action is taken this turn.)
+      if (!result.ok) {
+        const errMsg = (result.json?.error as { message?: string })?.message;
+        console.error('[agent] tool generation failed, falling back to no-tools:', errMsg);
+        const fallback = await callGroq(apiKey, baseBody);
+        if (fallback.ok) result = fallback;
+        else throw new Error(errMsg || `Groq error: ${result.status}`);
+      }
+    } else {
+      result = await callGroq(apiKey, baseBody);
+      if (!result.ok) {
+        throw new Error(
+          (result.json?.error as { message?: string })?.message || `Groq error: ${result.status}`
+        );
       }
     }
 

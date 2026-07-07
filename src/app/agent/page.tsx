@@ -103,51 +103,57 @@ export default function AgentPage() {
     (s: NonNullable<typeof state>) => {
       const today = format(new Date(), 'yyyy-MM-dd');
       const nameOf = (id: string) => s.products.find((p) => p.id === id)?.name ?? null;
-      const describeSteps = (steps: RoutineStep[]) =>
-        (steps ?? []).map((st) => ({
-          category: st.category,
-          products: st.productIds.map(nameOf).filter(Boolean),
-        }));
+      // Compact one step list into "category: prodA, prodB | category: prodC".
+      const stepsStr = (steps: RoutineStep[]) =>
+        (steps ?? [])
+          .map((st) => {
+            const prods = st.productIds.map(nameOf).filter(Boolean);
+            return prods.length ? `${st.category}: ${prods.join(', ')}` : st.category;
+          })
+          .join(' | ');
+      const cs = s.currentState;
       const nextNight = getNextNight(s);
+      // Keep the payload small — this snapshot is sent on every Luna call and
+      // the model has a tokens-per-minute budget.
       return {
         today,
         language: locale,
         goals: profile.goals,
         concerns: profile.concerns,
-        currentState: s.currentState,
+        currentState: cs
+          ? {
+              skinScore: cs.skinScore ?? undefined,
+              barrier: cs.barrier || undefined,
+              hydration: cs.hydration || undefined,
+              breakouts: cs.breakouts || undefined,
+              cyclePhase: cs.cyclePhase || undefined,
+              priorities: cs.currentPriorities?.length ? cs.currentPriorities : undefined,
+            }
+          : undefined,
         nextNight: nextNight ? nextNight.name : null,
-        products: s.products.map((p) => ({
-          id: p.id,
-          name: p.name,
-          brand: p.brand,
-          category: p.category,
-          status: p.status,
-          routineTime: p.routineTime,
-          isActive: p.isActive,
-          rating: p.rating ?? undefined,
-          inventoryLevel: p.inventoryLevel !== 'unknown' ? p.inventoryLevel : undefined,
-          tags: p.tags?.length ? p.tags : undefined,
-        })),
-        routines: s.routineDays.map((d) => ({
-          name: d.name,
-          kind: d.kind,
-          trigger: d.trigger || undefined,
-          morning: describeSteps(d.amSteps),
-          evening: describeSteps(d.pmSteps),
-        })),
-        recentLogs: s.dailyLogs.slice(0, 5).map((l) => ({
+        // name | brand | category | status | when
+        products: s.products.map(
+          (p) => `${p.name} | ${p.brand} | ${p.category} | ${p.status} | ${p.routineTime}`
+        ),
+        routines: s.routineDays.map((d) => {
+          const am = stepsStr(d.amSteps);
+          const pm = stepsStr(d.pmSteps);
+          return {
+            name: d.name,
+            kind: d.kind,
+            ...(d.trigger ? { trigger: d.trigger } : {}),
+            ...(am ? { am } : {}),
+            ...(pm ? { pm } : {}),
+          };
+        }),
+        recentLogs: s.dailyLogs.slice(0, 3).map((l) => ({
           date: l.date,
-          morningDone: l.amCompleted,
-          eveningDone: l.pmCompleted,
-          skinFeeling: l.skinFeeling,
-          skinConditions: l.skinConditions,
+          am: l.amCompleted,
+          pm: l.pmCompleted,
         })),
-        recentJournal: s.journalEntries.slice(0, 8).map((e) => ({
+        recentJournal: s.journalEntries.slice(0, 5).map((e) => ({
           kind: e.kind,
-          title: e.title || undefined,
-          body: e.body,
-          status: e.status || undefined,
-          date: e.entryDate || undefined,
+          note: e.title || e.body.slice(0, 90),
         })),
       };
     },
