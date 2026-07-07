@@ -13,8 +13,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const AGENT_NAME = 'Luna';
 
-// llama-3.3-70b is the most reliable Groq model for function calling.
-const MODEL = 'llama-3.3-70b-versatile';
+// gpt-oss-120b handles tool calling (and non-English prompts) far more
+// reliably than llama-3.3-70b, which frequently emitted malformed tool calls
+// and 400'd with "failed_generation".
+const MODEL = 'openai/gpt-oss-120b';
 
 const VALID_CATEGORIES = [
   'cleanser',
@@ -57,6 +59,7 @@ WHAT YOU CAN DO FOR THE USER:
 - Update their CURRENT STATE snapshot (skin score, barrier, hydration, priorities, follow-ups…).
 
 HOW TO BEHAVE:
+- For questions that only READ or REPORT information (e.g. "what's my morning routine?", "what products do I have?", "which night is next?"), answer directly from the snapshot in plain text WITHOUT calling any tool. Only call a tool when the user wants to CHANGE something — log a routine, or add / update / delete / create / rename / advance.
 - Be proactive but never guess destructive things. Ask a brief clarifying question when key info is missing (which time of day? how did your skin feel?).
 - ALWAYS prefer products the user ALREADY OWNS when suggesting routine steps. Only recommend buying something new when there's a genuine gap.
 - When you suggest building a routine, build it one logical order at a time (cleanser → toner → serum/treatment → eye cream → moisturizer → sunscreen for AM; cleanser → toner → treatment → serum → eye cream → moisturizer/night cream for PM).
@@ -421,6 +424,53 @@ const TOOLS = [
   },
 ];
 
+type ChatMsg = Record<string, unknown>;
+
+/**
+ * Groq sometimes returns a tool call with `arguments: null` (common for
+ * no-argument tools like advance_rotation). If that message is echoed back in a
+ * later request, Groq 400s ("arguments : Value is not nullable"). Normalise any
+ * tool-call arguments to a valid JSON string so re-sent history stays valid.
+ */
+function normalizeToolArgs(message: ChatMsg): ChatMsg {
+  const calls = message.tool_calls as
+    | Array<{ function?: { arguments?: unknown } }>
+    | undefined;
+  if (!Array.isArray(calls)) return message;
+  for (const c of calls) {
+    if (c.function && (c.function.arguments == null || typeof c.function.arguments !== 'string')) {
+      c.function.arguments = c.function.arguments == null ? '{}' : JSON.stringify(c.function.arguments);
+    }
+  }
+  return message;
+}
+
+async function callGroq(
+  apiKey: string,
+  body: Record<string, unknown>,
+  retriesOn429 = 1
+): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+    // Groq enforces a tokens-per-minute limit. On 429 it tells us how long to
+    // wait ("try again in 8.6s") — honour it once so bursts self-heal.
+    if (res.status === 429 && attempt < retriesOn429) {
+      const msg = (json?.error as { message?: string })?.message || '';
+      const m = msg.match(/try again in ([0-9.]+)s/i);
+      const waitMs = Math.min(m ? parseFloat(m[1]) + 0.5 : 3, 12) * 1000;
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+    return { ok: res.ok, status: res.status, json };
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
@@ -437,44 +487,59 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'messages array required' }, { status: 400 });
     }
 
-    // Strip any client-only display metadata (fields prefixed with "_").
+    // Strip client-only display metadata ("_"-prefixed) and repair any
+    // null tool-call arguments coming back from the client.
     const cleanMessages = messages.map((m) => {
       const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(m)) {
         if (k.startsWith('_')) continue;
         out[k] = v;
       }
-      return out;
+      return normalizeToolArgs(out);
     });
 
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'system', content: systemPrompt(context) }, ...cleanMessages],
-        tools: TOOLS,
-        tool_choice: 'auto',
-        max_tokens: 1200,
-        temperature: 0.5,
-      }),
-    });
+    const baseBody = {
+      model: MODEL,
+      messages: [{ role: 'system', content: systemPrompt(context) }, ...cleanMessages],
+      max_tokens: 700,
+      temperature: 0.5,
+    };
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        (err as Record<string, Record<string, string>>)?.error?.message ||
-          `Groq error: ${res.status}`
-      );
+    // When the last message is a tool result, this is a follow-up call where
+    // Luna just phrases a confirmation — it doesn't need the tools list.
+    // Omitting it roughly halves the tokens of that call, keeping a full action
+    // (tool call + confirmation) under the tokens-per-minute budget.
+    const lastRole = cleanMessages[cleanMessages.length - 1]?.role;
+    const wantTools = lastRole !== 'tool';
+
+    let result;
+    if (wantTools) {
+      // Attempt with tools, retrying once — tool-call generation is
+      // occasionally flaky and usually succeeds on a second try.
+      result = await callGroq(apiKey, { ...baseBody, tools: TOOLS, tool_choice: 'auto' });
+      if (!result.ok) {
+        result = await callGroq(apiKey, { ...baseBody, tools: TOOLS, tool_choice: 'auto' });
+      }
+      // Last resort: answer without tools so the user still gets a reply
+      // instead of a hard error. (No action is taken this turn.)
+      if (!result.ok) {
+        const errMsg = (result.json?.error as { message?: string })?.message;
+        console.error('[agent] tool generation failed, falling back to no-tools:', errMsg);
+        const fallback = await callGroq(apiKey, baseBody);
+        if (fallback.ok) result = fallback;
+        else throw new Error(errMsg || `Groq error: ${result.status}`);
+      }
+    } else {
+      result = await callGroq(apiKey, baseBody);
+      if (!result.ok) {
+        throw new Error(
+          (result.json?.error as { message?: string })?.message || `Groq error: ${result.status}`
+        );
+      }
     }
 
-    const data = (await res.json()) as {
-      choices: Array<{ message: Record<string, unknown> }>;
-    };
-    const message = data.choices[0]?.message ?? { role: 'assistant', content: '' };
+    const choices = result.json.choices as Array<{ message: ChatMsg }> | undefined;
+    const message = normalizeToolArgs(choices?.[0]?.message ?? { role: 'assistant', content: '' });
 
     return NextResponse.json({ message });
   } catch (error: unknown) {
