@@ -13,8 +13,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const AGENT_NAME = 'Luna';
 
-// llama-3.3-70b is the most reliable Groq model for function calling.
-const MODEL = 'llama-3.3-70b-versatile';
+// gpt-oss-120b handles tool calling (and non-English prompts) far more
+// reliably than llama-3.3-70b, which frequently emitted malformed tool calls
+// and 400'd with "failed_generation".
+const MODEL = 'openai/gpt-oss-120b';
 
 const VALID_CATEGORIES = [
   'cleanser',
@@ -57,6 +59,7 @@ WHAT YOU CAN DO FOR THE USER:
 - Update their CURRENT STATE snapshot (skin score, barrier, hydration, priorities, follow-ups…).
 
 HOW TO BEHAVE:
+- For questions that only READ or REPORT information (e.g. "what's my morning routine?", "what products do I have?", "which night is next?"), answer directly from the snapshot in plain text WITHOUT calling any tool. Only call a tool when the user wants to CHANGE something — log a routine, or add / update / delete / create / rename / advance.
 - Be proactive but never guess destructive things. Ask a brief clarifying question when key info is missing (which time of day? how did your skin feel?).
 - ALWAYS prefer products the user ALREADY OWNS when suggesting routine steps. Only recommend buying something new when there's a genuine gap.
 - When you suggest building a routine, build it one logical order at a time (cleanser → toner → serum/treatment → eye cream → moisturizer → sunscreen for AM; cleanser → toner → treatment → serum → eye cream → moisturizer/night cream for PM).
