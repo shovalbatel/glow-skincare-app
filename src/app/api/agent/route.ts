@@ -421,6 +421,40 @@ const TOOLS = [
   },
 ];
 
+type ChatMsg = Record<string, unknown>;
+
+/**
+ * Groq sometimes returns a tool call with `arguments: null` (common for
+ * no-argument tools like advance_rotation). If that message is echoed back in a
+ * later request, Groq 400s ("arguments : Value is not nullable"). Normalise any
+ * tool-call arguments to a valid JSON string so re-sent history stays valid.
+ */
+function normalizeToolArgs(message: ChatMsg): ChatMsg {
+  const calls = message.tool_calls as
+    | Array<{ function?: { arguments?: unknown } }>
+    | undefined;
+  if (!Array.isArray(calls)) return message;
+  for (const c of calls) {
+    if (c.function && (c.function.arguments == null || typeof c.function.arguments !== 'string')) {
+      c.function.arguments = c.function.arguments == null ? '{}' : JSON.stringify(c.function.arguments);
+    }
+  }
+  return message;
+}
+
+async function callGroq(
+  apiKey: string,
+  body: Record<string, unknown>
+): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  return { ok: res.ok, status: res.status, json };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.GROQ_API_KEY;
@@ -437,44 +471,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'messages array required' }, { status: 400 });
     }
 
-    // Strip any client-only display metadata (fields prefixed with "_").
+    // Strip client-only display metadata ("_"-prefixed) and repair any
+    // null tool-call arguments coming back from the client.
     const cleanMessages = messages.map((m) => {
       const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(m)) {
         if (k.startsWith('_')) continue;
         out[k] = v;
       }
-      return out;
+      return normalizeToolArgs(out);
     });
 
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'system', content: systemPrompt(context) }, ...cleanMessages],
-        tools: TOOLS,
-        tool_choice: 'auto',
-        max_tokens: 1200,
-        temperature: 0.5,
-      }),
-    });
+    const baseBody = {
+      model: MODEL,
+      messages: [{ role: 'system', content: systemPrompt(context) }, ...cleanMessages],
+      max_tokens: 1200,
+      temperature: 0.5,
+    };
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(
-        (err as Record<string, Record<string, string>>)?.error?.message ||
-          `Groq error: ${res.status}`
-      );
+    // Attempt with tools, retrying once — Groq tool-call generation is
+    // occasionally flaky and usually succeeds on a second try.
+    let result = await callGroq(apiKey, { ...baseBody, tools: TOOLS, tool_choice: 'auto' });
+    if (!result.ok) {
+      result = await callGroq(apiKey, { ...baseBody, tools: TOOLS, tool_choice: 'auto' });
     }
 
-    const data = (await res.json()) as {
-      choices: Array<{ message: Record<string, unknown> }>;
-    };
-    const message = data.choices[0]?.message ?? { role: 'assistant', content: '' };
+    // Last resort: answer without tools so the user still gets a reply instead
+    // of a hard error. (No action is taken this turn.)
+    if (!result.ok) {
+      const errMsg = (result.json?.error as { message?: string })?.message;
+      console.error('[agent] tool generation failed, falling back to no-tools:', errMsg);
+      const fallback = await callGroq(apiKey, baseBody);
+      if (fallback.ok) {
+        result = fallback;
+      } else {
+        throw new Error(errMsg || `Groq error: ${result.status}`);
+      }
+    }
+
+    const choices = result.json.choices as Array<{ message: ChatMsg }> | undefined;
+    const message = normalizeToolArgs(choices?.[0]?.message ?? { role: 'assistant', content: '' });
 
     return NextResponse.json({ message });
   } catch (error: unknown) {
